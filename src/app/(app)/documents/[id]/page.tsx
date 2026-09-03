@@ -17,6 +17,7 @@ import type { PreviewDocument } from "@/components/pdf/invoice-preview";
 
 import { DocumentActions } from "./document-actions";
 import { InvoiceStatusForm } from "./invoice-status-form";
+import { MarkSent } from "./mark-sent";
 
 export const metadata: Metadata = { title: "Document" };
 
@@ -119,6 +120,15 @@ export default async function DocumentPage({
           watermark={limitsFor(plan).watermark}
         />
       </div>
+
+      {/* Offered right after the download, because downloading is what someone
+          does immediately before emailing. Only while it is still a draft —
+          once tracked, the status dropdown below is the right control. */}
+      {invoice?.status === "draft" ? (
+        <div className="mt-4">
+          <MarkSent documentId={document.id} dueDate={invoice.dueDate} />
+        </div>
+      ) : null}
 
       {invoice ? (
         <div className="mt-8">

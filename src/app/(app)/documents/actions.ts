@@ -54,3 +54,43 @@ export async function updateInvoiceStatus(formData: FormData) {
   revalidatePath("/documents");
   revalidatePath("/dashboard");
 }
+
+/**
+ * Mark an invoice as sent.
+ *
+ * A separate action from the status dropdown because it is a different moment:
+ * this is the one transition that decides whether an invoice is tracked at all.
+ * A draft counts towards neither the outstanding total nor the overdue check,
+ * so an invoice emailed but left in draft is money the product has quietly
+ * stopped watching.
+ *
+ * Only draft moves. Re-running this on an invoice already paid would silently
+ * undo the payment record, which is why the status is part of the WHERE clause
+ * rather than something checked beforehand and then overwritten.
+ */
+export async function markInvoiceSent(formData: FormData) {
+  const user = await requireUser();
+  const documentId = formData.get("documentId");
+
+  if (typeof documentId !== "string") return;
+
+  const [updated] = await db
+    .update(invoices)
+    .set({ status: "sent" })
+    .where(
+      and(
+        eq(invoices.documentId, documentId),
+        eq(invoices.userId, user.id),
+        eq(invoices.status, "draft"),
+      ),
+    )
+    .returning({ documentId: invoices.documentId });
+
+  if (!updated) return;
+
+  await track(user.id, "invoice_marked_sent");
+
+  revalidatePath(`/documents/${documentId}`);
+  revalidatePath("/documents");
+  revalidatePath("/dashboard");
+}

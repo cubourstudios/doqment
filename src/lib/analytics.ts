@@ -25,6 +25,7 @@ export type EventName =
   | "checklist_viewed"
   | "document_created"
   | "document_downloaded"
+  | "invoice_marked_sent"
   | "invoice_marked_paid"
   | "upgrade_started"
   | "upgrade_completed";
