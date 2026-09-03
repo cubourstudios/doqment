@@ -11,6 +11,7 @@ import { getCountryConfig } from "@/lib/regions";
 import { peekNextInvoiceNumber } from "@/lib/invoice/numbering";
 import { stateCodeFromGstin } from "@/lib/invoice/tax";
 import { DOC_TYPE_LABELS } from "@/lib/labels";
+import { Button } from "@/components/ui/button";
 import { requiresDisclaimer } from "@/lib/disclaimers";
 import { buildPrefill, type RenderContext } from "@/lib/templates/render";
 import type { TemplateSchema } from "@/lib/templates/types";
@@ -66,6 +67,31 @@ export default async function NewDocumentPage({
           For {client?.name ?? project.title}. Tax is worked out from where you
           and your client are based.
         </p>
+
+        {/*
+          Raised here rather than blocked at onboarding.
+
+          A tax invoice without the supplier's address is not valid under GST
+          and most equivalent regimes, but demanding an address during signup
+          would slow the one screen that must stay fast — and someone filling
+          in onboarding has no idea yet why it matters. Here they do, and the
+          fix is one tap away. It is a warning rather than a block because a
+          draft invoice is still useful, and being unable to proceed at all
+          would be worse than an invoice they can correct.
+        */}
+        {!hasAddress(profile.addressJson) ? (
+          <div className="border-recommended/60 bg-recommended/10 mb-6 rounded-lg border px-4 py-3 text-sm">
+            <p className="font-medium">Add your business address first</p>
+            <p className="text-muted-foreground mt-1">
+              A tax invoice needs it to be valid
+              {country.code === "IN" ? " under GST" : ""}. It takes a moment and
+              applies to every invoice from now on.
+            </p>
+            <Button asChild variant="outline" size="sm" className="mt-3">
+              <Link href="/settings">Add it in settings</Link>
+            </Button>
+          </div>
+        ) : null}
 
         <InvoiceForm
           action={createInvoice.bind(null, project.id)}
@@ -179,5 +205,22 @@ function Shell({
       </Link>
       {children}
     </div>
+  );
+}
+
+/**
+ * An address counts as present only if it has a non-empty line.
+ *
+ * The column stores `{ lines: [...] }`, and a saved-then-cleared field leaves
+ * an empty array behind — which is not an address, however truthy the object is.
+ */
+function hasAddress(addressJson: unknown): boolean {
+  if (!addressJson || typeof addressJson !== "object") return false;
+
+  const lines = (addressJson as { lines?: unknown }).lines;
+
+  return (
+    Array.isArray(lines) &&
+    lines.some((line) => typeof line === "string" && line.trim() !== "")
   );
 }

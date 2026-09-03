@@ -18,6 +18,13 @@ export const onboardingSchema = z.object({
   businessName: z.string().max(200).optional().or(z.literal("")),
   businessType: z.enum(businessTypeEnum.enumValues).optional(),
   taxId: z.string().max(50).optional().or(z.literal("")),
+  /**
+   * Optional here, but required on a compliant tax invoice in most
+   * jurisdictions — India's GST rules among them. Asking for it during
+   * onboarding would slow the one screen that has to stay under a minute, so
+   * the invoice form asks for it at the point it actually matters instead.
+   */
+  address: z.string().max(500).optional().or(z.literal("")),
 });
 
 export type OnboardingInput = z.infer<typeof onboardingSchema>;

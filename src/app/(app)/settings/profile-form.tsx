@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -128,6 +129,24 @@ export function ProfileForm({
           defaultValue={profile.taxId ?? ""}
           autoCapitalize="characters"
         />
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="address">Business address</Label>
+        <Textarea
+          id="address"
+          name="address"
+          rows={3}
+          defaultValue={
+            (profile.addressJson as { lines?: string[] } | null)?.lines?.join(
+              "\n",
+            ) ?? ""
+          }
+          placeholder="Appears on your invoices"
+        />
+        <p className="text-muted-foreground text-sm">
+          Required on a valid tax invoice in most countries, India included.
+        </p>
       </div>
 
       {state.error ? (
