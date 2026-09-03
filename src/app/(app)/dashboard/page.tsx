@@ -6,10 +6,15 @@ import { requireProfile } from "@/lib/auth";
 import {
   getDashboardData,
   getMonthlyTotals,
+  getRecentDocuments,
   markOverdueInvoices,
 } from "@/lib/dashboard";
+import { getAllowance } from "@/lib/billing/allowance";
+import { getUserPlan } from "@/lib/billing/plans";
+import { AllowanceStrip } from "@/components/app/allowance-strip";
+import { RecentDocuments } from "@/components/app/recent-documents";
 import { RevenueChart } from "@/components/app/revenue-chart";
-import { formatDecimal, formatMinor } from "@/lib/invoice/money";
+import { formatMinor } from "@/lib/invoice/money";
 import { INVOICE_STATUS_LABELS } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,10 +33,14 @@ export default async function DashboardPage() {
 
   // Both reads hit the same tables; running them together rather than in
   // sequence keeps the dashboard to one round trip's worth of waiting.
-  const [data, monthly] = await Promise.all([
+  const [data, monthly, recentDocuments] = await Promise.all([
     getDashboardData(userId, currency),
     getMonthlyTotals(userId, currency),
+    getRecentDocuments(userId),
   ]);
+
+  // TODO(credits): mocked. See src/lib/billing/allowance.ts.
+  const allowance = getAllowance(await getUserPlan(userId), currency);
   const firstName = profile.name?.split(" ")[0];
 
   const nothingYet =
@@ -45,16 +54,25 @@ export default async function DashboardPage() {
         {firstName ? `Hello, ${firstName}` : "Hello"}
       </h1>
 
+      <AllowanceStrip allowance={allowance} />
+
       {nothingYet ? (
-        <div className="mt-8 grid place-items-center gap-4 rounded-lg border border-dashed px-6 py-16 text-center">
+        <div className="mt-8 grid place-items-center gap-4 rounded-lg border border-dashed px-6 py-12 text-center">
           <FolderPlusIcon className="text-muted-foreground size-8" />
           <p className="text-muted-foreground max-w-sm text-sm">
-            Start with a project. Tell us the client and roughly what it&apos;s
-            worth, and we&apos;ll work out which documents it needs.
+            Two ways in. Start a project and we&apos;ll work out which documents
+            it needs — or go straight to the one document you came for.
           </p>
-          <Button asChild>
-            <Link href="/projects/new">Create your first project</Link>
-          </Button>
+          {/* Both entry modes, not just projects: someone who arrived needing
+              an NDA today should not have to model their business first. */}
+          <div className="grid w-full max-w-sm gap-2 sm:grid-cols-2">
+            <Button asChild className="w-full">
+              <Link href="/projects/new">New project</Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/documents/new">Create a document</Link>
+            </Button>
+          </div>
         </div>
       ) : (
         <>
@@ -68,7 +86,7 @@ export default async function DashboardPage() {
             which buried the invoice list under the numbers nobody opened the
             app for.
           */}
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="-mx-4 mt-6 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
             <Stat
               label="Outstanding"
               value={formatMinor(data.outstanding.amount, currency)}
@@ -78,22 +96,20 @@ export default async function DashboardPage() {
               )}
               emphasis
             />
-            <div className="grid grid-cols-2 gap-3 sm:contents">
-              <Stat
-                label="Overdue"
-                value={formatMinor(data.overdue.amount, currency)}
-                detail={invoiceCountDetail(
-                  data.overdue.count,
-                  data.overdue.otherCurrencyCount,
-                )}
-                alert={data.overdue.count > 0}
-              />
-              <Stat
-                label="Paid"
-                value={formatMinor(data.paidThisYear, currency)}
-                detail="Received to date"
-              />
-            </div>
+            <Stat
+              label="Overdue"
+              value={formatMinor(data.overdue.amount, currency)}
+              detail={invoiceCountDetail(
+                data.overdue.count,
+                data.overdue.otherCurrencyCount,
+              )}
+              alert={data.overdue.count > 0}
+            />
+            <Stat
+              label="Paid"
+              value={formatMinor(data.paidThisYear, currency)}
+              detail="Received to date"
+            />
           </div>
 
           <Card className="mt-4">
@@ -103,56 +119,37 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
-          <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-            <Button asChild className="w-full sm:w-auto">
+          {/* Two entry modes, equal weight, both one tap from here. */}
+          <div className="mt-6 grid gap-2 sm:grid-cols-2 lg:max-w-md">
+            <Button asChild className="w-full">
               <Link href="/projects/new">
                 <PlusIcon />
                 New project
               </Link>
             </Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/documents/new">
+                <PlusIcon />
+                Create a document
+              </Link>
+            </Button>
           </div>
 
-          {data.recentInvoices.length > 0 ? (
+          {recentDocuments.length > 0 ? (
             <section className="mt-8">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-semibold">Recent invoices</h2>
+              <div className="flex items-center justify-between">
+                {/* Every type, not just invoices — a proposal written this
+                    morning used to be invisible from the home screen. */}
+                <h2 className="font-semibold">Recent documents</h2>
                 <Link
                   href="/documents"
-                  className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 hover:underline"
+                  className="text-muted-foreground hover:text-foreground -my-2 inline-flex min-h-11 items-center text-sm underline-offset-4 hover:underline"
                 >
                   All documents
                 </Link>
               </div>
 
-              <ul className="grid gap-2">
-                {data.recentInvoices.map((invoice) => (
-                  <li key={invoice.documentId}>
-                    <Link
-                      href={`/documents/${invoice.documentId}`}
-                      className="hover:bg-accent flex min-h-16 items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">
-                          {invoice.invoiceNumber}
-                        </span>
-                        <span className="text-muted-foreground block truncate text-sm">
-                          {invoice.clientName ?? "No client"}
-                        </span>
-                      </span>
-                      <span className="flex shrink-0 items-center gap-3">
-                        <span className="font-medium tabular-nums">
-                          {formatDecimal(invoice.total, invoice.currency)}
-                        </span>
-                        <InvoiceBadge
-                          status={
-                            invoice.status as (typeof invoiceStatusEnum.enumValues)[number]
-                          }
-                        />
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <RecentDocuments rows={recentDocuments} />
             </section>
           ) : null}
         </>
@@ -189,7 +186,7 @@ function Stat({
   return (
     // py-4 rather than the card default: a tile holding one number does not
     // need the vertical room of a content card, and three of them did.
-    <Card className="gap-0 py-4">
+    <Card className="w-[80%] shrink-0 snap-start gap-0 py-4 sm:w-auto">
       <CardContent className="px-4">
         <p className="text-muted-foreground text-xs sm:text-sm">{label}</p>
         <p

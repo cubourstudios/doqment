@@ -67,6 +67,50 @@ function countTotals(
   return { count: included, otherCurrencyCount: rows.length - included };
 }
 
+export type RecentDocument = {
+  id: string;
+  title: string;
+  docType: string;
+  createdAt: Date;
+  clientName: string | null;
+  invoiceStatus: string | null;
+  total: string | null;
+  currency: string | null;
+};
+
+/**
+ * The most recent documents of every type, not just invoices.
+ *
+ * The dashboard used to list invoices alone, which made the other five
+ * document types invisible from the home screen — a proposal generated this
+ * morning appeared nowhere until you went looking for it. The left join keeps
+ * invoice status and amount available for the rows that have them, and null
+ * for the rows that do not.
+ */
+export async function getRecentDocuments(
+  userId: string,
+  limit = 5,
+): Promise<RecentDocument[]> {
+  return db
+    .select({
+      id: documents.id,
+      title: documents.title,
+      docType: documents.docType,
+      createdAt: documents.createdAt,
+      clientName: clients.name,
+      invoiceStatus: invoices.status,
+      total: invoices.total,
+      currency: invoices.currency,
+    })
+    .from(documents)
+    .leftJoin(invoices, eq(invoices.documentId, documents.id))
+    .leftJoin(projects, eq(documents.projectId, projects.id))
+    .leftJoin(clients, eq(projects.clientId, clients.id))
+    .where(and(eq(documents.userId, userId), isNull(documents.deletedAt)))
+    .orderBy(desc(documents.createdAt))
+    .limit(limit);
+}
+
 /** One bar on the dashboard chart. */
 export type MonthlyTotals = {
   /** "2026-09", for React keys and ordering. */
