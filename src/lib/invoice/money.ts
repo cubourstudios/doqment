@@ -145,12 +145,22 @@ export function formatDecimal(value: string, currency: string): string {
   }
 }
 
+/**
+ * Indian digit grouping is what a rupee amount is expected to look like
+ * (2,36,000) and a typo everywhere else: en-IN renders $123,456.78 as
+ * $1,23,456.78 for the US, EU and Australian freelancers regions.ts also
+ * supports. The rupee is the exception, not the rule.
+ */
+function localeFor(currency: string): string {
+  return currency.toUpperCase() === "INR" ? "en-IN" : "en-US";
+}
+
 /** Display formatting. Never used for storage or arithmetic. */
 export function formatMinor(minor: bigint, currency: string): string {
   const digits = minorUnitDigits(currency);
 
   try {
-    return new Intl.NumberFormat("en-IN", {
+    return new Intl.NumberFormat(localeFor(currency), {
       style: "currency",
       currency,
       minimumFractionDigits: digits,

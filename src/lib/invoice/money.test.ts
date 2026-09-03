@@ -176,3 +176,18 @@ describe("formatMinor", () => {
     expect(formatMinor(10000n, "XYZ")).toContain("100.00");
   });
 });
+
+describe("grouping by currency", () => {
+  /**
+   * en-IN groups in lakhs, which is right for rupees and wrong for every other
+   * currency the app supports — a US freelancer was shown $1,23,456.78.
+   */
+  it("groups rupees in lakhs", () => {
+    expect(formatMinor(12345678n, "INR")).toBe("₹1,23,456.78");
+  });
+
+  it("groups every other currency in thousands", () => {
+    expect(formatMinor(12345678n, "USD")).toBe("$123,456.78");
+    expect(formatMinor(12345678n, "EUR")).toBe("€123,456.78");
+  });
+});

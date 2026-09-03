@@ -9,6 +9,8 @@ import {
   View,
 } from "@react-pdf/renderer";
 
+import { formatDecimal } from "@/lib/invoice/money";
+
 import { registerPdfFonts } from "./fonts";
 
 registerPdfFonts();
@@ -147,8 +149,16 @@ function formatAddress(address: unknown): string[] {
   return Array.isArray(lines) ? lines.filter((l) => typeof l === "string") : [];
 }
 
+/**
+ * The same formatting the app shows.
+ *
+ * This printed "INR 118000.00" — a database row rather than money — on the one
+ * document a client actually sees, while every in-app view of the same figure
+ * read "₹1,18,000.00". Noto Sans is registered precisely so the rupee sign
+ * renders here.
+ */
 function money(amount: string, currency: string): string {
-  return `${currency} ${amount}`;
+  return formatDecimal(amount, currency);
 }
 
 export function InvoiceDocument({
@@ -235,8 +245,12 @@ export function InvoiceDocument({
           <View key={index} style={styles.row} wrap={false}>
             <Text style={styles.colDescription}>{item.description}</Text>
             <Text style={styles.colQuantity}>{item.quantity}</Text>
-            <Text style={styles.colPrice}>{item.unitPrice}</Text>
-            <Text style={styles.colAmount}>{item.amount}</Text>
+            <Text style={styles.colPrice}>
+              {money(item.unitPrice, data.currency)}
+            </Text>
+            <Text style={styles.colAmount}>
+              {money(item.amount, data.currency)}
+            </Text>
           </View>
         ))}
 
