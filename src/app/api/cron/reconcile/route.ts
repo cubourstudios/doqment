@@ -22,15 +22,18 @@ import { profiles } from "@/db/schema";
  */
 
 export async function GET(request: Request) {
-  // Vercel signs cron requests with this header. Without the check the endpoint
-  // is a public plan-downgrade trigger.
+  // Vercel signs cron requests with this header. Refuse when the secret is
+  // absent rather than skipping the check: an unset CRON_SECRET is how this
+  // endpoint becomes a public plan-downgrade trigger, so it fails closed.
   const secret = process.env.CRON_SECRET;
 
-  if (secret) {
-    const authorization = request.headers.get("authorization");
-    if (authorization !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-    }
+  if (!secret) {
+    console.error("CRON_SECRET is not set");
+    return NextResponse.json({ error: "not configured" }, { status: 500 });
+  }
+
+  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const downgraded = await db

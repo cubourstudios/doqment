@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 import {
   activateSubscription,
-  claimWebhookEvent,
   downgradeSubscription,
   userIdForSubscription,
 } from "@/lib/billing/entitlement";
@@ -71,27 +70,28 @@ export async function POST(request: Request) {
    */
   const eventId = `${entity.id}:${eventName}:${entity.current_end ?? 0}`;
 
-  if (!(await claimWebhookEvent("razorpay", eventId))) {
-    return NextResponse.json({ received: true, duplicate: true });
-  }
-
   try {
-    await handleEvent(eventName, entity);
+    // The claim happens inside the handler's own transaction, so an event is
+    // marked processed only if its effect committed. A failure here leaves
+    // nothing claimed and Razorpay's retry does the work.
+    const applied = await handleEvent(eventName, entity, eventId);
+
+    return NextResponse.json({ received: true, duplicate: !applied });
   } catch (error) {
     console.error(`razorpay webhook ${eventName} failed`, error);
     return NextResponse.json({ error: "handler failed" }, { status: 500 });
   }
-
-  return NextResponse.json({ received: true });
 }
 
+/** True when this delivery applied the event; false when it was a duplicate. */
 async function handleEvent(
   eventName: string,
   entity: NonNullable<
     NonNullable<RazorpayPayload["payload"]>["subscription"]
   >["entity"],
-) {
-  if (!entity?.id) return;
+  eventId: string,
+): Promise<boolean> {
+  if (!entity?.id) return true;
 
   const subscriptionId = entity.id;
   const status = entity.status ?? "unknown";
@@ -109,10 +109,10 @@ async function handleEvent(
 
       if (!userId) {
         console.error(`razorpay: no user for subscription ${subscriptionId}`);
-        return;
+        return true;
       }
 
-      await activateSubscription({
+      return activateSubscription({
         userId,
         provider: "razorpay",
         providerSubId: subscriptionId,
@@ -122,24 +122,23 @@ async function handleEvent(
           ? new Date(entity.current_end * 1000)
           : monthFromNow(),
         status,
+        eventId,
       });
-      return;
     }
 
     case "subscription.halted":
     case "subscription.cancelled":
     case "subscription.completed":
-    case "subscription.expired": {
-      await downgradeSubscription({
+    case "subscription.expired":
+      return downgradeSubscription({
         provider: "razorpay",
         providerSubId: subscriptionId,
         status,
+        eventId,
       });
-      return;
-    }
 
     default:
-      return;
+      return true;
   }
 }
 

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, notInArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -28,18 +28,28 @@ type Provider = (typeof billingProviderEnum.enumValues)[number];
 /** Grace past the paid period end, so a renewal in flight is not a lockout. */
 const GRACE_DAYS = 3;
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 /**
  * Record that an event was processed, returning false if it already had been.
  *
  * Razorpay retries on any non-2xx and redelivers after an outage, so the same
  * "subscription charged" can arrive several times. Without this, a retry would
  * extend the paid period again on each delivery.
+ *
+ * Takes the caller's transaction so the claim commits with the write it
+ * guards. Claiming on a separate connection first and only then applying the
+ * change leaves the event marked processed with nothing applied if that second
+ * step fails — a timeout, a dropped connection — and the retry is then refused
+ * as a duplicate. That is a customer who paid and stays on `free`, which
+ * nothing repairs: the reconcile cron only ever downgrades.
  */
-export async function claimWebhookEvent(
+async function claimWebhookEvent(
+  tx: Tx,
   provider: Provider,
   providerEventId: string,
 ): Promise<boolean> {
-  const inserted = await db
+  const inserted = await tx
     .insert(webhookEvents)
     .values({ provider, providerEventId })
     .onConflictDoNothing()
@@ -48,21 +58,32 @@ export async function claimWebhookEvent(
   return inserted.length > 0;
 }
 
+/** False when the event had already been applied. */
 export async function activateSubscription(input: {
   userId: string;
   provider: Provider;
   providerSubId: string;
   currentPeriodEnd: Date;
   status: string;
+  eventId: string;
   raw?: unknown;
-}): Promise<void> {
-  const { userId, provider, providerSubId, currentPeriodEnd, status, raw } =
-    input;
+}): Promise<boolean> {
+  const {
+    userId,
+    provider,
+    providerSubId,
+    currentPeriodEnd,
+    status,
+    eventId,
+    raw,
+  } = input;
 
   const expiresAt = new Date(currentPeriodEnd);
   expiresAt.setDate(expiresAt.getDate() + GRACE_DAYS);
 
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
+    if (!(await claimWebhookEvent(tx, provider, eventId))) return false;
+
     await tx
       .insert(subscriptions)
       .values({
@@ -87,6 +108,8 @@ export async function activateSubscription(input: {
       .update(profiles)
       .set({ plan: "pro", planExpiresAt: expiresAt, updatedAt: new Date() })
       .where(eq(profiles.userId, userId));
+
+    return true;
   });
 }
 
@@ -101,10 +124,13 @@ export async function downgradeSubscription(input: {
   provider: Provider;
   providerSubId: string;
   status: string;
-}): Promise<void> {
-  const { provider, providerSubId, status } = input;
+  eventId: string;
+}): Promise<boolean> {
+  const { provider, providerSubId, status, eventId } = input;
 
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
+    if (!(await claimWebhookEvent(tx, provider, eventId))) return false;
+
     const [row] = await tx
       .update(subscriptions)
       .set({ status, updatedAt: new Date() })
@@ -116,12 +142,14 @@ export async function downgradeSubscription(input: {
       )
       .returning({ userId: subscriptions.userId });
 
-    if (!row) return;
+    if (!row) return true;
 
     await tx
       .update(profiles)
       .set({ plan: "free", planExpiresAt: null, updatedAt: new Date() })
       .where(eq(profiles.userId, row.userId));
+
+    return true;
   });
 }
 
@@ -144,11 +172,34 @@ export async function userIdForSubscription(
   return row?.userId ?? null;
 }
 
+/**
+ * Statuses a subscription does not come back from. Razorpay's own vocabulary,
+ * stored raw.
+ */
+const TERMINAL_STATUSES = ["cancelled", "completed", "expired"];
+
+/**
+ * The subscription a user currently holds, or null.
+ *
+ * Rows accumulate: `subscriptions` is unique on (provider, provider_sub_id),
+ * so cancelling and resubscribing leaves the old row in place beside the new
+ * one. Without the status filter and the ordering this returned whichever row
+ * Postgres happened to hand back first, which decides both the renewal date
+ * shown and — through cancelSubscription — which subscription is cancelled at
+ * the provider. Cancelling a dead one reports success while the live one keeps
+ * charging the card.
+ */
 export async function activeSubscriptionFor(userId: string) {
   const [row] = await db
     .select()
     .from(subscriptions)
-    .where(eq(subscriptions.userId, userId))
+    .where(
+      and(
+        eq(subscriptions.userId, userId),
+        notInArray(subscriptions.status, TERMINAL_STATUSES),
+      ),
+    )
+    .orderBy(desc(subscriptions.createdAt))
     .limit(1);
 
   return row ?? null;
