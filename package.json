@@ -19,6 +19,7 @@
     "db:seed": "tsx --env-file-if-exists=.env.local src/db/seed.ts",
     "db:check": "node --env-file-if-exists=.env.local scripts/check-db.mjs",
     "db:setup": "npm run env:check && npm run db:migrate && npm run db:manual && npm run db:seed && npm run db:check",
+    "setup": "node scripts/setup-env.mjs",
     "env:check": "node scripts/check-env.mjs"
   },
   "dependencies": {
