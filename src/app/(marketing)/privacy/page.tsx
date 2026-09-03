@@ -56,7 +56,7 @@ export default function PrivacyPage() {
       <Section title="What we do not store">
         <p>
           <strong>Card details never touch our servers.</strong> Payments go
-          directly to Razorpay or Stripe, who handle the card and tell us only
+          directly to Razorpay, who handles the card and tells us only
           whether a subscription is active.
         </p>
         <p>
@@ -82,7 +82,7 @@ export default function PrivacyPage() {
         <p>
           Only the services needed to run Doqment: Supabase (database,
           authentication and file storage), Vercel (hosting), and Razorpay or
-          Stripe for payments. Each sees only what its job requires.
+          Razorpay for payments. Each sees only what its job requires.
         </p>
       </Section>
 

@@ -36,7 +36,7 @@
 | F7 | Auto invoice numbering | Sequential per user, per financial year (India) / calendar year (US); no gaps, no duplicates |
 | F8 | Document storage & dashboard | List by project; search by client name; download anytime; soft delete |
 | F9 | Invoice status tracking (manual) | Draft → Sent → Paid → Overdue toggles; overdue auto-flag by due date |
-| F10 | Freemium limits + Razorpay/Stripe subscription | Free limits enforced; upgrade flow; watermark on free-tier PDFs |
+| F10 | Freemium limits + Razorpay subscription | Free limits enforced; upgrade flow; watermark on free-tier PDFs |
 | F11 | Legal disclaimer surface | Shown at every contract-type generation; acceptance logged |
 
 ### SHOULD (v1.1, weeks 13–20)
@@ -48,7 +48,7 @@
 
 ### COULD (v2)
 - E-signature (embed a provider once revenue exists)
-- Client portal; payment collection (Stripe/Razorpay links)
+- Client portal; payment collection (Razorpay payment links)
 - AI-assist for clause customization; template marketplace
 - Reminders auto-send; analytics (avg. days-to-paid)
 

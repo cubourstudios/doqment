@@ -38,9 +38,24 @@
  * reach it. What free does not include is an unwatermarked PDF — the moment a
  * document goes to a paying client is the moment the freelancer wants it to
  * look like theirs.
+ *
+ * ## One provider, two currencies
+ *
+ * Both rails are Razorpay. The split below is a *currency* decision, not a
+ * provider one: an Indian customer is charged in rupees, everyone else in
+ * dollars, and each currency needs its own Razorpay plan because a Razorpay
+ * plan fixes its currency at creation.
+ *
+ * The USD rail additionally requires International Payments to be enabled on
+ * the Razorpay account, which is a separate activation. Until those plan ids
+ * are set, `isRailConfigured()` reports the rail as unavailable and the UI
+ * says so plainly rather than opening a checkout that would throw.
  */
 
 export type BillingInterval = "month" | "year";
+
+/** Which currency a customer is charged in. Both are billed by Razorpay. */
+export type BillingRail = "inr" | "usd";
 
 export type PriceOption = {
   interval: BillingInterval;
@@ -50,19 +65,22 @@ export type PriceOption = {
   comparedTo?: string;
   /** e.g. "2 months free" */
   saving?: string;
-  /** Environment variable holding the provider's plan or price id. */
+  /** Environment variable holding the Razorpay plan id. */
   envKey: string;
 };
 
 export type RailPricing = {
   currency: string;
+  /** How the charge is described to the customer. */
+  billedAs: string;
   monthly: PriceOption;
   annual: PriceOption;
 };
 
-export const PRICING: Record<"razorpay" | "stripe", RailPricing> = {
-  razorpay: {
+export const PRICING: Record<BillingRail, RailPricing> = {
+  inr: {
     currency: "INR",
+    billedAs: "Billed in rupees through Razorpay.",
     monthly: {
       interval: "month",
       amount: "₹199",
@@ -76,19 +94,20 @@ export const PRICING: Record<"razorpay" | "stripe", RailPricing> = {
       envKey: "RAZORPAY_PLAN_ID_ANNUAL",
     },
   },
-  stripe: {
+  usd: {
     currency: "USD",
+    billedAs: "Billed in US dollars through Razorpay.",
     monthly: {
       interval: "month",
       amount: "$6",
-      envKey: "STRIPE_PRICE_ID_MONTHLY",
+      envKey: "RAZORPAY_PLAN_ID_MONTHLY_USD",
     },
     annual: {
       interval: "year",
       amount: "$60",
       comparedTo: "$72",
       saving: "2 months free",
-      envKey: "STRIPE_PRICE_ID_ANNUAL",
+      envKey: "RAZORPAY_PLAN_ID_ANNUAL_USD",
     },
   },
 };
@@ -102,7 +121,7 @@ export const PRO_FEATURES = [
 ] as const;
 
 export function priceFor(
-  rail: "razorpay" | "stripe",
+  rail: BillingRail,
   interval: BillingInterval,
 ): PriceOption {
   const pricing = PRICING[rail];
@@ -110,14 +129,14 @@ export function priceFor(
 }
 
 /**
- * The provider id for a plan.
+ * The Razorpay plan id for a rail and interval.
  *
  * Read at call time rather than at import: a missing id should fail when
  * someone tries to subscribe, with a message naming the variable, rather than
  * crashing the process on boot.
  */
 export function planIdFor(
-  rail: "razorpay" | "stripe",
+  rail: BillingRail,
   interval: BillingInterval,
 ): string {
   const option = priceFor(rail, interval);
@@ -125,10 +144,26 @@ export function planIdFor(
 
   if (!id) {
     throw new Error(
-      `${option.envKey} is not set. Create the ${interval}ly plan in the ` +
-        `${rail} dashboard and put its id in that variable.`,
+      `${option.envKey} is not set. Create the ${interval}ly ` +
+        `${PRICING[rail].currency} plan in the Razorpay dashboard and put ` +
+        `its id in that variable.`,
     );
   }
 
   return id;
+}
+
+/**
+ * Whether a rail can actually take money.
+ *
+ * Called from the server so the billing page can offer an honest message
+ * instead of an Upgrade button that throws. Both intervals are required: an
+ * account with only the monthly plan configured would render a yearly option
+ * that fails on tap.
+ */
+export function isRailConfigured(rail: BillingRail): boolean {
+  return Boolean(
+    process.env[PRICING[rail].monthly.envKey] &&
+      process.env[PRICING[rail].annual.envKey],
+  );
 }

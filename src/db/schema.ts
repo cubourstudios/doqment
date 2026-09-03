@@ -111,6 +111,12 @@ export const guidancePriorityEnum = pgEnum("guidance_priority", [
   "situational",
 ]);
 
+/*
+ * Razorpay is the only provider the app writes. "stripe" is a leftover from a
+ * dual-rail design that was dropped, kept because Postgres has no way to drop
+ * a value from an enum type — removing it would mean recreating the type and
+ * rewriting every column that references it, to delete a string nothing reads.
+ */
 export const billingProviderEnum = pgEnum("billing_provider", [
   "razorpay",
   "stripe",

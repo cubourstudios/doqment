@@ -5,7 +5,12 @@ import { CheckIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PRICING, PRO_FEATURES, type BillingInterval } from "@/lib/billing/pricing";
+import {
+  PRICING,
+  PRO_FEATURES,
+  type BillingInterval,
+  type BillingRail,
+} from "@/lib/billing/pricing";
 
 import { UpgradeButton } from "./upgrade-button";
 
@@ -17,7 +22,7 @@ import { UpgradeButton } from "./upgrade-button";
  * simply reflects the option most people would pick once they have done the
  * arithmetic — and doing that arithmetic for them is the point.
  */
-export function PlanPicker({ rail }: { rail: "razorpay" | "stripe" }) {
+export function PlanPicker({ rail }: { rail: BillingRail }) {
   const [interval, setInterval] = useState<BillingInterval>("year");
 
   const pricing = PRICING[rail];
@@ -91,12 +96,11 @@ export function PlanPicker({ rail }: { rail: "razorpay" | "stripe" }) {
           ))}
         </ul>
 
-        <UpgradeButton rail={rail} interval={interval} />
+        <UpgradeButton interval={interval} />
 
         <p className="text-muted-foreground text-xs">
-          {rail === "razorpay"
-            ? "Billed in rupees through Razorpay. Cancel any time — you keep Pro until the period you have paid for ends."
-            : "Billed in US dollars through Stripe. Cancel any time — you keep Pro until the period you have paid for ends."}
+          {pricing.billedAs} Cancel any time — you keep Pro until the period
+          you have paid for ends.
         </p>
       </CardContent>
     </Card>

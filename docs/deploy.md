@@ -94,7 +94,75 @@ Set the function region to match the database under Settings → Functions. This
 is worth doing before launch rather than after: it is the difference between a
 page that feels instant and one that feels sluggish, and it costs nothing.
 
-## What is not deployed yet
+## Billing (Razorpay)
 
-Billing (Razorpay and Stripe) is Phase 7. The webhook routes and their secrets
-do not exist yet, so no payment configuration is needed for this deployment.
+Razorpay is the only payment provider. Everything below can be done in **test
+mode**; Razorpay KYC is required only to accept real money, so the whole flow
+can be built and exercised before the account is live.
+
+### 1. Create the plans
+
+Razorpay dashboard → Subscriptions → Plans. A plan fixes its currency when it
+is created, so each currency needs its own pair:
+
+| Plan | Currency | Amount | Period |
+|---|---|---|---|
+| Pro monthly | INR | ₹199 | Monthly |
+| Pro yearly | INR | ₹1,999 | Yearly |
+| Pro monthly (intl) | USD | $6 | Monthly |
+| Pro yearly (intl) | USD | $60 | Yearly |
+
+The yearly plans are ten months' price — two months free. That discount is the
+main lever on lifetime value, so keep the ratio if the prices move.
+
+The USD pair needs **International Payments** enabled on the account, which is
+a separate activation with its own review. Until it is on, leave
+`RAZORPAY_PLAN_ID_*_USD` blank: the billing page then tells non-Indian users
+that Pro has not reached their region yet, rather than opening a checkout that
+fails.
+
+### 2. Add the variables
+
+| Variable | Value |
+|---|---|
+| `RAZORPAY_KEY_ID` | Settings → API Keys |
+| `RAZORPAY_KEY_SECRET` | Shown once when the key is generated |
+| `NEXT_PUBLIC_RAZORPAY_KEY_ID` | Same as `RAZORPAY_KEY_ID` — used by checkout.js |
+| `RAZORPAY_WEBHOOK_SECRET` | Chosen by you when creating the webhook, below |
+| `RAZORPAY_PLAN_ID_MONTHLY` | INR monthly plan id (`plan_…`) |
+| `RAZORPAY_PLAN_ID_ANNUAL` | INR yearly plan id |
+| `RAZORPAY_PLAN_ID_MONTHLY_USD` | USD monthly plan id, once international is on |
+| `RAZORPAY_PLAN_ID_ANNUAL_USD` | USD yearly plan id |
+| `CRON_SECRET` | Any long random string — see below |
+
+`RAZORPAY_KEY_SECRET` is server-only. Prefixing it `NEXT_PUBLIC_` would ship it
+to every browser that loads the app.
+
+### 3. Register the webhook
+
+Razorpay dashboard → Settings → Webhooks → Add New Webhook.
+
+- **URL:** `https://<your-domain>/api/webhooks/razorpay`
+- **Secret:** whatever you put in `RAZORPAY_WEBHOOK_SECRET`
+- **Events:** `subscription.activated`, `subscription.charged`,
+  `subscription.resumed`, `subscription.halted`, `subscription.cancelled`,
+  `subscription.completed`, `subscription.expired`
+
+The webhook is the only thing that grants or removes a paid plan. The
+browser-side success handler is deliberately not trusted: it can be replayed,
+edited in a console, or never fire at all if someone closes the tab the moment
+their payment succeeds.
+
+### 4. Schedule the reconciliation cron
+
+`vercel.json` runs `/api/cron/reconcile` daily. It downgrades anyone still
+marked `pro` whose paid period plus grace has elapsed, which is what catches a
+cancellation webhook that never arrived. `CRON_SECRET` must be set — without
+it the endpoint is a public downgrade trigger.
+
+### 5. Verify
+
+In test mode, subscribe with a Razorpay test card, then check that
+`profiles.plan` flips to `pro` **after the webhook lands**, not when the
+checkout closes. If it flips on close, entitlement has leaked into the client
+and that is a bug worth stopping for.

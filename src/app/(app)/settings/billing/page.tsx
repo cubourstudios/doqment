@@ -5,7 +5,8 @@ import { ChevronLeftIcon } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { getUsage, getUserPlan, limitsFor } from "@/lib/billing/plans";
 import { activeSubscriptionFor } from "@/lib/billing/entitlement";
-import { providerForCountry } from "@/lib/billing/types";
+import { railForCountry } from "@/lib/billing/types";
+import { isRailConfigured } from "@/lib/billing/pricing";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -28,7 +29,10 @@ export default async function BillingPage({
   ]);
 
   const limits = limitsFor(plan);
-  const rail = providerForCountry(profile.country);
+  const rail = railForCountry(profile.country);
+  // Read on the server: the plan ids are not public, so whether a rail can
+  // take money is something only the server can answer.
+  const railAvailable = isRailConfigured(rail);
 
   return (
     <div className="mx-auto w-full max-w-lg">
@@ -51,6 +55,14 @@ export default async function BillingPage({
         <p className="bg-muted mt-4 rounded-lg p-3 text-sm">
           Payment received. Your plan updates as soon as the payment provider
           confirms it — usually within a few seconds.
+        </p>
+      ) : null}
+
+      {params.cancel === "failed" ? (
+        <p role="alert" className="bg-muted mt-4 rounded-lg p-3 text-sm">
+          We couldn&apos;t cancel that just now. Nothing has changed and you
+          have not been charged again — try once more, or email us and
+          we&apos;ll do it from our side.
         </p>
       ) : null}
 
@@ -81,7 +93,24 @@ export default async function BillingPage({
 
       {plan === "free" ? (
         <div className="mt-6">
-          <PlanPicker rail={rail} />
+          {/* An Upgrade button that throws is worse than no button. When the
+              rail has no plans configured — international, before Razorpay's
+              International Payments is switched on — the honest answer is
+              that paid plans have not reached that region yet. */}
+          {railAvailable ? (
+            <PlanPicker rail={rail} />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Pro isn&apos;t available here yet</CardTitle>
+              </CardHeader>
+              <CardContent className="text-muted-foreground text-sm">
+                We can&apos;t take payments in your region yet. Everything on
+                the free plan keeps working, and nothing you&apos;ve created is
+                affected.
+              </CardContent>
+            </Card>
+          )}
         </div>
       ) : (
         <Card className="mt-6">

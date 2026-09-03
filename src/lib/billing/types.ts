@@ -1,59 +1,34 @@
-import type { BillingInterval } from "./pricing";
+import type { BillingRail } from "./pricing";
 
 /**
- * One interface, two providers.
+ * One provider: Razorpay.
  *
- * India's payment rails and the rest of the world's barely resemble each other:
- * Razorpay wants a subscription created server-side and opened in its own
- * checkout script, Stripe wants a hosted checkout session. Rather than let that
- * difference spread through the app, both are hidden behind this interface and
- * the caller only ever asks "start a subscription for this user".
+ * There was briefly a second rail behind a `BillingProvider` interface, on the
+ * theory that India needed Razorpay and everyone else needed Stripe. It is
+ * gone. Razorpay bills both currencies, and an abstraction over a single
+ * implementation is a layer that hides the one thing worth reading.
  *
- * The rail is chosen by the user's country, because that is what determines
- * which currency they can actually be charged in — an Indian card on a USD
- * subscription attracts a foreign transaction fee and often simply fails.
+ * What survives the simplification is the part that was never about
+ * providers: which *currency* a customer is charged in. That still follows
+ * from their country, because a Razorpay plan fixes its currency at creation
+ * and an Indian customer on a USD plan pays a foreign transaction fee for the
+ * privilege.
  */
 
-export type BillingProviderName = "razorpay" | "stripe";
-
-export type CheckoutSession =
-  | { kind: "redirect"; url: string }
-  | {
-      /** Razorpay opens in a client-side script rather than redirecting. */
-      kind: "razorpay_subscription";
-      subscriptionId: string;
-      keyId: string;
-    };
-
-export type BillingProvider = {
-  name: BillingProviderName;
-
-  createSubscription(input: {
-    userId: string;
-    email: string | null;
-    interval: BillingInterval;
-    successUrl: string;
-    cancelUrl: string;
-  }): Promise<CheckoutSession>;
-
-  /** Where the user manages or cancels an existing subscription. */
-  createPortalSession(input: {
-    userId: string;
-    providerCustomerId: string | null;
-    providerSubscriptionId: string | null;
-    returnUrl: string;
-  }): Promise<CheckoutSession | null>;
-
-  cancelSubscription(providerSubscriptionId: string): Promise<void>;
+/**
+ * Razorpay never redirects — it opens its own script over the page — so this
+ * carries the ids the browser needs to launch that checkout.
+ */
+export type CheckoutSession = {
+  subscriptionId: string;
+  keyId: string;
 };
 
-/** India pays in rupees through Razorpay; everyone else in dollars via Stripe. */
-export function providerForCountry(
-  country: string | null,
-): BillingProviderName {
-  return country?.toUpperCase() === "IN" ? "razorpay" : "stripe";
+/** India is billed in rupees; everyone else in dollars. */
+export function railForCountry(country: string | null): BillingRail {
+  return country?.toUpperCase() === "IN" ? "inr" : "usd";
 }
 
 // Pricing lives in ./pricing.ts, which is where the numbers and the reasoning
 // behind them are kept together.
-export type { BillingInterval } from "./pricing";
+export type { BillingInterval, BillingRail } from "./pricing";

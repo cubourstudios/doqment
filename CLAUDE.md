@@ -2,7 +2,7 @@
 ## Drop this file in the repo root. Claude Code reads it automatically.
 
 **Project:** Doqment — guided documents & invoicing for freelancers (see /docs for BRD, PRD, MVP, Tech Plan).
-**Stack (locked):** Next.js 14+ App Router, TypeScript strict, Supabase (Postgres/Auth/Storage), Drizzle ORM, Tailwind + shadcn/ui, react-hook-form + Zod, @react-pdf/renderer (client-side), Razorpay + Stripe subscriptions, deployed on Vercel.
+**Stack (locked):** Next.js 14+ App Router, TypeScript strict, Supabase (Postgres/Auth/Storage), Drizzle ORM, Tailwind + shadcn/ui, react-hook-form + Zod, @react-pdf/renderer (client-side), Razorpay subscriptions, deployed on Vercel.
 
 ---
 
@@ -20,7 +20,7 @@ npm install @supabase/supabase-js @supabase/ssr \
   drizzle-orm postgres \
   react-hook-form @hookform/resolvers zod \
   @react-pdf/renderer \
-  razorpay stripe \
+  razorpay \
   date-fns lucide-react \
   class-variance-authority clsx tailwind-merge
 ```
@@ -41,7 +41,7 @@ npx shadcn@latest add button input form card dialog select badge table tabs toas
 3. **Node version:** pin `"engines": { "node": ">=20" }` — Supabase SSR and Next 14 both want Node 18.17+, and Vercel defaults are fine, but local mismatches cause cryptic auth cookie bugs.
 4. **`postgres` (the npm driver) vs `pg`:** use `postgres` (postgres.js) with Drizzle; in serverless, create the client with `{ prepare: false }` because Supabase's connection pooler (transaction mode, port 6543) does not support prepared statements. This is the #1 cause of "it works locally, fails on Vercel."
 5. **Razorpay SDK is server-only** (uses Node crypto). Only import it in route handlers/server actions. For the checkout UI, load `https://checkout.razorpay.com/v1/checkout.js` via `next/script`.
-6. **Stripe webhook needs the raw body.** In App Router, read `await req.text()` before verification — do NOT parse JSON first, signature check will fail.
+6. **The Razorpay webhook needs the raw body.** In App Router, read `await req.text()` before verifying the HMAC — do NOT parse JSON first and re-serialise, the signature is over the exact bytes sent and the check will fail for reasons that look nothing like the cause.
 7. **Zod version:** stay on Zod 3.x; @hookform/resolvers pairs with it. Don't let Claude Code upgrade to a Zod 4 beta.
 8. **drizzle-kit migrations** run against the **direct** connection string (port 5432), while the app at runtime uses the **pooled** string (port 6543). Keep both env vars (below).
 
@@ -53,12 +53,14 @@ SUPABASE_SERVICE_ROLE_KEY=          # server-only, never NEXT_PUBLIC
 DATABASE_URL=                        # pooled, port 6543, for app runtime
 DIRECT_DATABASE_URL=                 # direct, port 5432, for drizzle-kit migrate
 RAZORPAY_KEY_ID=
-RAZORPAY_KEY_SECRET=
+RAZORPAY_KEY_SECRET=                 # server-only, never NEXT_PUBLIC
 RAZORPAY_WEBHOOK_SECRET=
 NEXT_PUBLIC_RAZORPAY_KEY_ID=         # public key for checkout.js
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+RAZORPAY_PLAN_ID_MONTHLY=            # INR plans, charged to customers in India
+RAZORPAY_PLAN_ID_ANNUAL=
+RAZORPAY_PLAN_ID_MONTHLY_USD=        # USD plans; needs International Payments
+RAZORPAY_PLAN_ID_ANNUAL_USD=
+CRON_SECRET=                         # guards /api/cron/reconcile
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -128,36 +130,35 @@ Acceptance: signup→dashboard < 60s; session survives refresh & browser restart
 
 ---
 
-## 4. Payment Gateway Integration (dual-rail)
+## 4. Payment Gateway Integration (Razorpay only)
 
 ### Design rule
-One internal interface, two providers. Currency decides the rail: profile country = IN → Razorpay (INR); everyone else → Stripe (USD).
+**One provider: Razorpay.** Stripe was in the original plan and has been removed — Razorpay bills both currencies once International Payments is enabled, so a second gateway buys nothing but a second set of webhooks to keep correct. Do not reintroduce it.
+
+What still follows from the customer's country is the **currency**, because a Razorpay plan fixes its currency at creation: profile country = IN → INR plans; everyone else → USD plans.
 
 ```
-src/lib/billing/types.ts        # BillingProvider interface
-src/lib/billing/razorpay.ts
-src/lib/billing/stripe.ts
+src/lib/billing/pricing.ts      # prices, plan-id env keys, rail availability
+src/lib/billing/types.ts        # BillingRail + railForCountry
+src/lib/billing/razorpay.ts     # server-only: create / cancel / verify
+src/lib/billing/entitlement.ts  # the only place a plan changes
 src/app/api/webhooks/razorpay/route.ts
-src/app/api/webhooks/stripe/route.ts
+src/app/api/cron/reconcile/route.ts
 src/app/(app)/settings/billing/page.tsx
 ```
 
-### Razorpay (India) — subscriptions
-1. Dashboard (test mode): create Plan `pro_monthly_inr` at ₹299/month. KYC is needed only to go live — build everything in test mode now.
-2. Server action `createRazorpaySubscription()`: `razorpay.subscriptions.create({ plan_id, total_count: 120, notes: { user_id } })` → return `subscription_id`.
+### Subscriptions
+1. Dashboard (test mode): four plans — INR ₹199/month and ₹1,999/year, USD $6/month and $60/year. The annual price is ten months, i.e. two months free. KYC is needed only to go live; International Payments is a separate activation needed only for the USD pair.
+2. Server action `createRazorpaySubscription({ userId, rail, interval })`: `razorpay.subscriptions.create({ plan_id, total_count, customer_notify: 1, notes: { user_id } })` → return `subscription_id`. `notes` is the only field that survives the round trip to the webhook.
 3. Client: open checkout.js with `{ key: NEXT_PUBLIC_RAZORPAY_KEY_ID, subscription_id, handler }`.
-4. **Do not trust the client handler for entitlement.** Truth comes from the webhook: handle `subscription.activated`, `subscription.charged` (extend `current_period_end`), `subscription.halted`/`cancelled` (downgrade after 3-day grace). Verify `x-razorpay-signature` (HMAC-SHA256 of raw body with `RAZORPAY_WEBHOOK_SECRET`).
+4. **Do not trust the client handler for entitlement.** Truth comes from the webhook: handle `subscription.activated`, `subscription.charged`, `subscription.resumed` (extend `current_period_end`), and `subscription.halted`/`cancelled`/`completed`/`expired` (downgrade after 3-day grace). Verify `x-razorpay-signature` (HMAC-SHA256 of the raw body with `RAZORPAY_WEBHOOK_SECRET`) using `timingSafeEqual`, never `===`.
 5. Upsert into `subscriptions`; set `profiles.plan = 'pro'`, `plan_expires_at = period_end + 3 days`.
+6. Cancellation: `subscriptions.cancel(id, true)` — at cycle end, never immediately. Razorpay has no hosted customer portal, so this lives in-app.
 
-### Stripe (US/intl) — subscriptions
-1. Dashboard (test mode): Product "Doqment Pro" → recurring price $6/month → copy `price_id`.
-2. Server action: `stripe.checkout.sessions.create({ mode: "subscription", line_items: [{ price, quantity: 1 }], success_url, cancel_url, client_reference_id: userId, customer_email })` → redirect to `session.url`.
-3. Webhook: verify with `stripe.webhooks.constructEvent(rawBody, sig, STRIPE_WEBHOOK_SECRET)`; handle `checkout.session.completed`, `invoice.paid` (extend period), `customer.subscription.deleted` (downgrade). Local testing: `stripe listen --forward-to localhost:3000/api/webhooks/stripe`.
-4. Cancellation UI: Stripe → `billingPortal.sessions.create`; Razorpay → `subscriptions.cancel(id, { cancel_at_cycle_end: 1 })`.
-
-### Shared hardening (both rails)
-- **Idempotency:** store processed webhook event IDs in a `webhook_events` table; skip duplicates (both providers retry).
-- **Reconciliation cron** (Vercel cron, daily): for every `pro` profile past `plan_expires_at`, re-check provider API; downgrade if lapsed. This catches missed webhooks.
+### Hardening
+- **Idempotency:** store processed webhook event ids in `webhook_events`; skip duplicates. Razorpay sends no stable event id, so derive one from `subscription id : event name : current_end` — it changes on every real transition and repeats on every retry.
+- **Reconciliation cron** (Vercel cron, daily): downgrade every `pro` profile past `plan_expires_at`. This catches missed webhooks. Guard it with `CRON_SECRET` or it is a public downgrade trigger.
+- **Unconfigured rail:** if a rail's plan ids are missing, `isRailConfigured()` is false and the UI says Pro is not available in that region yet. Never render an Upgrade button that will throw.
 - **Entitlement check:** single helper `getUserPlan(userId)` used by every limit gate (project count, generations/month, watermark, storage). Never scatter plan logic.
 - Webhook routes must be excluded from auth middleware.
 

@@ -17,6 +17,12 @@ import {
  * trusted to change a plan.
  */
 
+/*
+ * The enum still carries a "stripe" value that nothing writes any more.
+ * Postgres cannot drop a value from an enum type — it would mean recreating
+ * the type and rewriting every column that uses it — and an unused value costs
+ * nothing, so it stays.
+ */
 type Provider = (typeof billingProviderEnum.enumValues)[number];
 
 /** Grace past the paid period end, so a renewal in flight is not a lockout. */
@@ -25,9 +31,9 @@ const GRACE_DAYS = 3;
 /**
  * Record that an event was processed, returning false if it already had been.
  *
- * Both providers retry on any non-2xx, and Stripe replays events after an
- * outage, so the same "subscription charged" can arrive several times. Without
- * this, a retry would extend the paid period again on each delivery.
+ * Razorpay retries on any non-2xx and redelivers after an outage, so the same
+ * "subscription charged" can arrive several times. Without this, a retry would
+ * extend the paid period again on each delivery.
  */
 export async function claimWebhookEvent(
   provider: Provider,
@@ -136,25 +142,6 @@ export async function userIdForSubscription(
     .limit(1);
 
   return row?.userId ?? null;
-}
-
-/** The Stripe customer id, kept in rawJson since there is no column for it. */
-export async function stripeCustomerIdFor(
-  userId: string,
-): Promise<string | null> {
-  const [row] = await db
-    .select({ rawJson: subscriptions.rawJson })
-    .from(subscriptions)
-    .where(
-      and(
-        eq(subscriptions.userId, userId),
-        eq(subscriptions.provider, "stripe"),
-      ),
-    )
-    .limit(1);
-
-  const raw = row?.rawJson as { customerId?: unknown } | null;
-  return typeof raw?.customerId === "string" ? raw.customerId : null;
 }
 
 export async function activeSubscriptionFor(userId: string) {

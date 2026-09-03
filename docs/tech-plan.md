@@ -16,7 +16,7 @@
 | PDF generation | **@react-pdf/renderer, client-side** | Zero server cost, instant preview, deterministic layout. Fallback: print CSS. Post-revenue upgrade path: server-side Puppeteer/Chromium on a queue for pixel-perfect complex layouts. |
 | UI | **Tailwind + shadcn/ui** | Fast, professional defaults, free. |
 | Forms/validation | **react-hook-form + Zod** | Zod schemas shared between client form validation and server API validation — single source of truth per document type. |
-| Payments | **Razorpay (INR) + Stripe (USD/intl)** subscriptions | Dual-rail required: Stripe India onboarding is restrictive; Razorpay doesn't serve US merchants well. Abstract behind one internal `BillingProvider` interface. |
+| Payments | **Razorpay subscriptions**, INR and USD | One provider. Razorpay is the workable rail for an India-registered merchant, and it bills both currencies once International Payments is enabled — so the second gateway earns nothing but a second set of webhooks to keep correct. The currency still follows the customer's country, because a plan fixes its currency at creation. |
 | Email (v1.1) | Resend free tier (3K/mo) | Transactional email later; not needed at MVP. |
 | Analytics / Errors | PostHog free + Sentry free | Both have generous free tiers. |
 | CI/CD | GitHub Actions (free) → Vercel preview deploys | PR previews for free QA. |
@@ -42,12 +42,11 @@
               │ • Rules engine (F4)    │   │ • pg_cron: overdue flagging,│
               └───────┬────────────────┘   │   billing reconciliation    │
                       │                    └─────────────────────────────┘
-        ┌─────────────┴─────────────┐
-        ▼                           ▼
-┌───────────────┐          ┌───────────────┐
-│ Razorpay      │          │ Stripe        │   (webhooks → /api/webhooks/*,
-│ subscriptions │          │ subscriptions │    signature-verified)
-└───────────────┘          └───────────────┘
+                      ▼
+             ┌───────────────┐
+             │ Razorpay      │   (webhook → /api/webhooks/razorpay,
+             │ subscriptions │    signature-verified; INR and USD plans)
+             └───────────────┘
 ```
 
 **Key flow — document generation:** client fills guided form → Zod validates → server action writes a `documents` row + `document_versions` row (JSON payload of all field values + template version) → client renders PDF locally from that payload → optional "archive PDF" uploads the file to Storage. The **source of truth is structured JSON**, not the PDF — this enables re-rendering, editing, future formats, and analytics.
@@ -89,7 +88,7 @@ guidance_rules   (id PK, conditions_json, doc_type, priority ENUM(essential,
 uploads          (id PK, user_id FK, project_id FK NULL, file_path, file_name,
                   mime, size, created_at)
 disclaimer_logs  (id PK, user_id FK, document_id FK, template_version, accepted_at)
-subscriptions    (id PK, user_id FK, provider ENUM(razorpay,stripe),
+subscriptions    (id PK, user_id FK, provider ENUM(razorpay,stripe -- 'stripe' unused; PG cannot drop an enum value),
                   provider_sub_id, status, current_period_end, raw_json)
 events           (id PK, user_id, name, props_json, created_at)  -- backup analytics
 ```
@@ -99,7 +98,7 @@ events           (id PK, user_id, name, props_json, created_at)  -- backup analy
 ## 4. API Design Approach
 
 - **Server Actions** for authenticated app mutations (create project, generate document) — simplest, type-safe, CSRF-protected by framework.
-- **Route handlers (REST)** only where an HTTP endpoint is required: `/api/webhooks/razorpay`, `/api/webhooks/stripe` (signature verification, idempotency keys stored to dedupe retries), `/api/export` (GDPR data export), public quiz endpoint.
+- **Route handlers (REST)** only where an HTTP endpoint is required: `/api/webhooks/razorpay` (signature verification, idempotency keys stored to dedupe retries), `/api/export` (GDPR data export), public quiz endpoint.
 - Versioning deferred (no external API consumers at MVP); when v2 exposes an API, mount at `/api/v1`.
 - Validation: shared Zod schemas per document type; server never trusts client-computed totals — tax math recomputed server-side for invoices.
 
