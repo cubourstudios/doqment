@@ -1,16 +1,82 @@
 import type { Metadata } from "next";
-import { FolderIcon } from "lucide-react";
+import Link from "next/link";
+import { desc, eq } from "drizzle-orm";
+import { FolderIcon, PlusIcon } from "lucide-react";
 
-import { PagePlaceholder } from "@/components/app/page-placeholder";
+import { db } from "@/db";
+import { clients, projects } from "@/db/schema";
+import { requireUser } from "@/lib/auth";
+import { PROJECT_STATUS_LABELS, PROJECT_TYPE_LABELS } from "@/lib/labels";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "Projects" };
 
-export default function ProjectsPage() {
+export default async function ProjectsPage() {
+  const user = await requireUser();
+
+  const rows = await db
+    .select({
+      id: projects.id,
+      title: projects.title,
+      projectType: projects.projectType,
+      status: projects.status,
+      clientName: clients.name,
+    })
+    .from(projects)
+    .leftJoin(clients, eq(projects.clientId, clients.id))
+    .where(eq(projects.userId, user.id))
+    .orderBy(desc(projects.createdAt));
+
   return (
-    <PagePlaceholder
-      title="Projects"
-      description="Projects group a client, a brief and every document you create for it. Creating and listing them lands next."
-      icon={FolderIcon}
-    />
+    <div className="mx-auto w-full max-w-3xl">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
+        <Button asChild size="sm">
+          <Link href="/projects/new">
+            <PlusIcon />
+            New
+          </Link>
+        </Button>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="mt-8 grid place-items-center gap-4 rounded-lg border border-dashed px-6 py-16 text-center">
+          <FolderIcon className="text-muted-foreground size-8" />
+          <p className="text-muted-foreground max-w-sm text-sm">
+            A project is a client, a brief, and the documents that go with it.
+            Create one and we&apos;ll work out what it needs.
+          </p>
+          <Button asChild>
+            <Link href="/projects/new">Create your first project</Link>
+          </Button>
+        </div>
+      ) : (
+        <ul className="mt-6 grid gap-2">
+          {rows.map((project) => (
+            <li key={project.id}>
+              <Link
+                href={`/projects/${project.id}`}
+                className="hover:bg-accent flex min-h-16 items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">
+                    {project.title}
+                  </span>
+                  <span className="text-muted-foreground block truncate text-sm">
+                    {[project.clientName, PROJECT_TYPE_LABELS[project.projectType]]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </span>
+                <Badge variant={project.status === "active" ? "default" : "secondary"}>
+                  {PROJECT_STATUS_LABELS[project.status]}
+                </Badge>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
