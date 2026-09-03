@@ -22,9 +22,11 @@ import { InvoiceDocument, type InvoicePdfData } from "./invoice-document";
 export function InvoicePreview({
   data,
   fileName,
+  watermark = false,
 }: {
   data: InvoicePdfData;
   fileName: string;
+  watermark?: boolean;
 }) {
   const [showPreview, setShowPreview] = useState(false);
 
@@ -32,7 +34,7 @@ export function InvoicePreview({
     <div className="grid gap-4">
       <div className="flex flex-col gap-2 sm:flex-row">
         <PDFDownloadLink
-          document={<InvoiceDocument data={data} />}
+          document={<InvoiceDocument data={data} watermark={watermark} />}
           fileName={fileName}
           className="w-full sm:w-auto"
         >
@@ -59,7 +61,7 @@ export function InvoicePreview({
       {showPreview ? (
         <div className="h-[70vh] overflow-hidden rounded-lg border">
           <PDFViewer width="100%" height="100%" showToolbar={false}>
-            <InvoiceDocument data={data} />
+            <InvoiceDocument data={data} watermark={watermark} />
           </PDFViewer>
         </div>
       ) : null}

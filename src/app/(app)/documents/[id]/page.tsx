@@ -7,6 +7,7 @@ import { ChevronLeftIcon } from "lucide-react";
 import { db } from "@/db";
 import { documents, documentVersions, invoices, projects } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
+import { getUserPlan, limitsFor } from "@/lib/billing/plans";
 import { DOC_TYPE_LABELS, INVOICE_STATUS_LABELS } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
 import type { InvoicePdfData } from "@/components/pdf/invoice-document";
@@ -50,6 +51,8 @@ export default async function DocumentPage({
   if (!row?.version) notFound();
 
   const { document, version, invoice } = row;
+
+  const plan = await getUserPlan(user.id);
   const data = version.dataJson as InvoicePdfData;
 
   return (
@@ -94,6 +97,7 @@ export default async function DocumentPage({
         <DocumentActions
           data={data}
           fileName={`${document.title.replace(/\//g, "-")}.pdf`}
+          watermark={limitsFor(plan).watermark}
         />
       </div>
 

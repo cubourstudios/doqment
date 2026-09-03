@@ -23,6 +23,7 @@ import { toDecimalString } from "@/lib/invoice/money";
 import { reserveInvoiceNumber } from "@/lib/invoice/numbering";
 import { stateCodeFromGstin, taxBreakdownToJson } from "@/lib/invoice/tax";
 import { invoiceSchema } from "@/lib/schemas/invoice";
+import { canCreateDocument, getUserPlan } from "@/lib/billing/plans";
 
 export type DocumentState = { error?: string };
 
@@ -41,6 +42,10 @@ export async function createInvoice(
   formData: FormData,
 ): Promise<DocumentState> {
   const { userId, profile } = await requireProfile();
+
+  const plan = await getUserPlan(userId);
+  const entitlement = await canCreateDocument(userId, plan);
+  if (!entitlement.allowed) return { error: entitlement.reason };
 
   // Line items arrive as parallel arrays from the repeating form rows.
   const descriptions = formData.getAll("lineDescription").map(String);

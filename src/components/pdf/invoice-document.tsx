@@ -119,6 +119,15 @@ const styles = StyleSheet.create({
   note: { marginTop: 10, fontSize: 9, color: "#475569" },
   notes: { marginTop: 28 },
   sectionLabel: { fontWeight: 700, marginBottom: 3 },
+  watermark: {
+    position: "absolute",
+    bottom: 46,
+    left: 40,
+    right: 40,
+    fontSize: 8,
+    color: "#cbd5e1",
+    textAlign: "center",
+  },
   footer: {
     position: "absolute",
     bottom: 28,
@@ -140,7 +149,13 @@ function money(amount: string, currency: string): string {
   return `${currency} ${amount}`;
 }
 
-export function InvoiceDocument({ data }: { data: InvoicePdfData }) {
+export function InvoiceDocument({
+  data,
+  watermark = false,
+}: {
+  data: InvoicePdfData;
+  watermark?: boolean;
+}) {
   const supplierAddress = formatAddress(data.supplier.address);
   const clientAddress = formatAddress(data.client?.address);
 
@@ -248,6 +263,15 @@ export function InvoiceDocument({ data }: { data: InvoicePdfData }) {
             <Text style={styles.sectionLabel}>Notes</Text>
             <Text>{data.notes}</Text>
           </View>
+        ) : null}
+
+        {/* Free-plan mark. Deliberately small and at the foot of the page:
+            it should make the user want to upgrade, not make the invoice
+            embarrassing to send to a paying client. */}
+        {watermark ? (
+          <Text style={styles.watermark} fixed>
+            Created with Doqment
+          </Text>
         ) : null}
 
         <Text

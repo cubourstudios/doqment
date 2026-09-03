@@ -21,9 +21,13 @@ const InvoicePreview = dynamic(
 export function DocumentActions({
   data,
   fileName,
+  watermark,
 }: {
   data: InvoicePdfData;
   fileName: string;
+  watermark: boolean;
 }) {
-  return <InvoicePreview data={data} fileName={fileName} />;
+  return (
+    <InvoicePreview data={data} fileName={fileName} watermark={watermark} />
+  );
 }
