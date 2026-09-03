@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import {
   Card,
@@ -11,6 +12,8 @@ import { requireProfile } from "@/lib/auth";
 import { getCountryConfig } from "@/lib/regions";
 
 import { ProfileForm } from "./profile-form";
+import { Button } from "@/components/ui/button";
+import { DeleteAccountButton } from "./delete-account-button";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -63,6 +66,45 @@ export default async function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Plan</CardTitle>
+          <CardDescription>
+            What you can create, and how to change it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Link href="/settings/billing">Manage plan</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Your data</CardTitle>
+          <CardDescription>
+            Everything you have created, as JSON — full document contents, not a
+            summary. A product holding your invoices should never be the reason
+            you cannot leave it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* A plain link rather than a fetch: the route sets a
+              content-disposition header and the browser handles the download,
+              which also works when JavaScript has not loaded. */}
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <a href="/api/export" download>
+              Export my data
+            </a>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div className="mt-10">
+        <DeleteAccountButton />
+      </div>
     </div>
   );
 }

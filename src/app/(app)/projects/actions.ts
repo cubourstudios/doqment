@@ -9,6 +9,7 @@ import { clients, projects } from "@/db/schema";
 import { requireProfile, requireUser } from "@/lib/auth";
 import { projectSchema, projectUpdateSchema } from "@/lib/schemas/project";
 import { canCreateProject, getUserPlan } from "@/lib/billing/plans";
+import { track } from "@/lib/analytics";
 
 export type ProjectState = { error?: string };
 
@@ -99,6 +100,8 @@ export async function createProject(
 
     return project.id;
   });
+
+  await track(userId, "project_created", { projectType, valueBand });
 
   revalidatePath("/projects");
   revalidatePath("/dashboard");

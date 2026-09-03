@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projects, uploads } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
+import { LIMITS, rateLimit } from "@/lib/rate-limit";
 import {
   ALLOWED_UPLOAD_TYPES,
   MAX_UPLOAD_BYTES,
@@ -22,6 +23,19 @@ export async function uploadProjectFile(
   formData: FormData,
 ): Promise<UploadState> {
   const user = await requireUser();
+
+  // Keyed by user rather than IP: the caller is authenticated here, so this is
+  // an exact identity rather than a spoofable header.
+  const limited = rateLimit(
+    `upload:${user.id}`,
+    LIMITS.upload.limit,
+    LIMITS.upload.windowSeconds,
+  );
+
+  if (!limited.allowed) {
+    return { error: "Too many uploads just now. Try again in a few minutes." };
+  }
+
   const file = formData.get("file");
 
   if (!(file instanceof File) || file.size === 0) {

@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { invoices } from "@/db/schema";
 import { invoiceStatusEnum } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
+import { track } from "@/lib/analytics";
 
 const statusSchema = z.object({
   documentId: z.string().uuid(),
@@ -44,6 +45,10 @@ export async function updateInvoiceStatus(formData: FormData) {
     .where(
       and(eq(invoices.documentId, documentId), eq(invoices.userId, user.id)),
     );
+
+  if (status === "paid") {
+    await track(user.id, "invoice_marked_paid");
+  }
 
   revalidatePath(`/documents/${documentId}`);
   revalidatePath("/documents");

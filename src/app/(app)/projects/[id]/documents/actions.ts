@@ -24,6 +24,7 @@ import { reserveInvoiceNumber } from "@/lib/invoice/numbering";
 import { stateCodeFromGstin, taxBreakdownToJson } from "@/lib/invoice/tax";
 import { invoiceSchema } from "@/lib/schemas/invoice";
 import { canCreateDocument, getUserPlan } from "@/lib/billing/plans";
+import { track } from "@/lib/analytics";
 
 export type DocumentState = { error?: string };
 
@@ -222,6 +223,14 @@ export async function createInvoice(
 
     return document.id;
   });
+
+  // Best-effort and deliberately outside the transaction: an analytics row is
+  // not worth failing a created invoice over.
+  //
+  // No disclaimer is logged here. Invoices are arithmetic, not legal advice —
+  // the disclaimer applies to the contract types (see src/lib/disclaimers.ts),
+  // and belongs in their creation path when they are built.
+  await track(userId, "document_created", { docType: "invoice" });
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/documents");

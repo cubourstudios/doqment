@@ -4,6 +4,7 @@ import { CheckIcon, PlusIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { DISCLAIMER_TEXT, requiresDisclaimer } from "@/lib/disclaimers";
 import { DOC_TYPE_LABELS, PRIORITY_LABELS } from "@/lib/labels";
 import type { ProjectChecklist } from "@/lib/guidance/service";
 import type { GuidancePriority } from "@/lib/guidance/types";
@@ -32,6 +33,12 @@ export function DocumentChecklist({
   checklist: ProjectChecklist;
 }) {
   const { items, generated, completeness } = checklist;
+
+  // Shown whenever the checklist recommends anything with legal weight, in the
+  // same place as the recommendation rather than behind a link. Someone who
+  // does not know what an SOW is cannot judge whether they need a lawyer to
+  // look at one.
+  const showsContracts = items.some((item) => requiresDisclaimer(item.docType));
 
   if (items.length === 0) {
     return (
@@ -116,6 +123,12 @@ export function DocumentChecklist({
           );
         })}
       </ul>
+
+      {showsContracts ? (
+        <p className="text-muted-foreground rounded-lg border border-dashed p-3 text-xs leading-relaxed">
+          {DISCLAIMER_TEXT}
+        </p>
+      ) : null}
     </div>
   );
 }
