@@ -5,12 +5,12 @@ import { and, eq } from "drizzle-orm";
 import { ChevronLeftIcon } from "lucide-react";
 
 import { db } from "@/db";
-import { clients, projects, templates } from "@/db/schema";
+import { clients, documents, documentVersions, projects, templates } from "@/db/schema";
 import { requireProfile } from "@/lib/auth";
 import { getCountryConfig } from "@/lib/regions";
 import { peekNextInvoiceNumber } from "@/lib/invoice/numbering";
 import { stateCodeFromGstin } from "@/lib/invoice/tax";
-import { hasAddress } from "@/lib/invoice/round-trip";
+import { addDays, hasAddress, taxRateFromComponents } from "@/lib/invoice/round-trip";
 import { DOC_TYPE_LABELS } from "@/lib/labels";
 import { Button } from "@/components/ui/button";
 import { requiresDisclaimer } from "@/lib/disclaimers";
@@ -19,7 +19,8 @@ import type { TemplateSchema } from "@/lib/templates/types";
 import { docTypeEnum } from "@/db/schema";
 import type { DocType } from "@/lib/guidance/types";
 
-import { InvoiceForm } from "./invoice-form";
+import { InvoiceForm, type InvoiceFormInitial } from "./invoice-form";
+import type { InvoicePdfData } from "@/components/pdf/invoice-document";
 import { TemplateForm } from "./template-form";
 import { createInvoice } from "../actions";
 import { createTemplateDocument } from "../create-document";
@@ -37,7 +38,7 @@ export default async function NewDocumentPage({
   searchParams,
 }: PageProps<"/projects/[id]/documents/new">) {
   const { id } = await params;
-  const { type } = await searchParams;
+  const { type, from } = await searchParams;
   const { userId, profile } = await requireProfile();
 
   const [row] = await db
@@ -54,6 +55,18 @@ export default async function NewDocumentPage({
   const country = getCountryConfig(profile.country);
 
   if (docType === "invoice") {
+    /*
+     * Duplicating an existing invoice.
+     *
+     * A retainer client gets the same invoice every month, and re-entering
+     * every line item is the most repeated waste in the product. This seeds
+     * the form and stops there: the number is still only reserved on submit,
+     * so abandoning a duplicate costs nothing. Reserving on the click would
+     * burn a number for a decision not yet made, and numbers are never reused.
+     */
+    const source =
+      typeof from === "string" ? await loadInvoiceSource(from, userId) : null;
+
     const nextInvoiceNumber = await peekNextInvoiceNumber(
       db,
       userId,
@@ -107,6 +120,7 @@ export default async function NewDocumentPage({
             defaultDescription: project.title,
             defaultNotes: profile.paymentDetails ?? "",
           }}
+          initial={source ?? undefined}
         />
       </Shell>
     );
@@ -210,3 +224,50 @@ function Shell({
   );
 }
 
+/**
+ * Read an invoice's current version into the shape the form seeds from.
+ *
+ * Dates are deliberately not copied. A duplicate is this month's invoice, not
+ * a copy of last month's — carrying the old issue date forward would produce
+ * an invoice dated in the past and, with it, one that is already overdue.
+ * Leaving them undefined lets the form apply its own defaults: today, Net 30.
+ */
+async function loadInvoiceSource(
+  documentId: string,
+  userId: string,
+): Promise<InvoiceFormInitial | null> {
+  const [row] = await db
+    .select({ version: documentVersions })
+    .from(documents)
+    .innerJoin(
+      documentVersions,
+      eq(documents.currentVersionId, documentVersions.id),
+    )
+    .where(
+      and(
+        eq(documents.id, documentId),
+        // Scoped to the caller: without this, any document id would be
+        // readable by anyone who could guess one.
+        eq(documents.userId, userId),
+        eq(documents.docType, "invoice"),
+      ),
+    )
+    .limit(1);
+
+  if (!row) return null;
+
+  const data = row.version.dataJson as InvoicePdfData;
+
+  return {
+    issueDate: new Date().toISOString().slice(0, 10),
+    dueDate: addDays(new Date().toISOString().slice(0, 10), 30),
+    discount: data.discount === "0.00" ? "" : data.discount,
+    notes: data.notes ?? "",
+    taxRateBasisPoints: taxRateFromComponents(data.tax.components),
+    lineItems: data.lineItems.map((item) => ({
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+    })),
+  };
+}

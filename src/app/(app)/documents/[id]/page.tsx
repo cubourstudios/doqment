@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
-import { ChevronLeftIcon, PencilIcon } from "lucide-react";
+import { ChevronLeftIcon, CopyIcon, PencilIcon } from "lucide-react";
 
 import { db } from "@/db";
 import { documents, documentVersions, invoices, projects } from "@/db/schema";
@@ -118,6 +118,21 @@ export default async function DocumentPage({
               <Link href={`/documents/${document.id}/edit`}>
                 <PencilIcon />
                 Edit
+              </Link>
+            </Button>
+          ) : null}
+
+          {/* Available whatever the status, and especially when paid: the
+              reason to duplicate is that last month's invoice is settled and
+              this month's is due. It seeds a form rather than creating
+              anything, so no number is spent until the user commits. */}
+          {invoice && document.projectId ? (
+            <Button asChild variant="outline" size="sm">
+              <Link
+                href={`/projects/${document.projectId}/documents/new?type=invoice&from=${document.id}`}
+              >
+                <CopyIcon />
+                Duplicate
               </Link>
             </Button>
           ) : null}
