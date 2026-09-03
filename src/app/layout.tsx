@@ -1,13 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/*
+ * Self-hosted by next/font rather than linked from Google's API: the file is
+ * served from our own origin, so there is no extra DNS + TLS + stylesheet round
+ * trip in front of first paint, and no flash of fallback text.
+ */
+const inter = Inter({
+  variable: "--font-sans-family",
   subsets: ["latin"],
 });
 
@@ -58,30 +63,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <head>
-        {/*
-         * Afacad, served from Google's API. next/font cannot fetch it — this
-         * Next version's Google font manifest predates it — so it is linked
-         * rather than self-hosted. Afacad is OFL, so self-hosting it is an
-         * option later if the extra request is worth removing.
-         *
-         * Geist stays loaded as the fallback in --font-sans: it is self-hosted
-         * by next/font, so a blocked or slow CDN degrades to a real typeface
-         * instead of to Times New Roman.
-         */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font --
-            the rule is about pages/_document.js in the Pages Router. This is
-            the App Router root layout, so the stylesheet is on every page,
-            which is exactly what the rule asks for. */}
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Afacad:ital,wght@0,400..700;1,400..700&display=swap"
-        />
-      </head>
       <body className="flex min-h-full flex-col">
         <ThemeProvider>
           {children}

@@ -148,11 +148,9 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* Afacad first, Geist behind it. Geist is self-hosted by next/font, so it is
-     what renders if the Google Fonts request is slow or blocked — the fallback
-     is a real typeface rather than the browser default. */
-  --font-sans: "Afacad", var(--font-geist-sans), ui-sans-serif, system-ui,
-    sans-serif;
+  /* Inter, self-hosted by next/font — served from our own origin, so no extra
+     round trip in front of first paint and no flash of fallback text. */
+  --font-sans: var(--font-sans-family), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -172,8 +170,8 @@
        reads as a layout bug. Keeping the base at 16px avoids it entirely. */
     font-size: 16px;
     -webkit-tap-highlight-color: transparent;
-    /* Afacad is a variable font with a weight axis and optical sizing; it has
-       no GRAD axis, so none is set. Inert when the fallback renders. */
+    /* Inter carries an optical-size axis; letting it adjust keeps small labels
+       readable without making headings look loose. */
     font-optical-sizing: auto;
   }
 
