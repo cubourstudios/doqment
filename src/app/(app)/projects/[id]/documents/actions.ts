@@ -176,7 +176,7 @@ export async function createInvoice(
           })),
           discount: toDecimalString(totals.discount, currency),
           subtotal: toDecimalString(totals.subtotal, currency),
-          tax: taxBreakdownToJson(totals.tax),
+          tax: taxBreakdownToJson(totals.tax, currency),
           total: toDecimalString(totals.total, currency),
           supplier: {
             name: profile.businessName ?? profile.name,
@@ -210,7 +210,7 @@ export async function createInvoice(
       dueDate: input.dueDate || null,
       currency,
       subtotal: toDecimalString(totals.subtotal, currency),
-      taxJson: taxBreakdownToJson(totals.tax),
+      taxJson: taxBreakdownToJson(totals.tax, currency),
       total: toDecimalString(totals.total, currency),
       status: "draft",
     });

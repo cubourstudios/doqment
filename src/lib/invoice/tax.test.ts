@@ -206,7 +206,8 @@ describe("tax breakdown serialisation", () => {
   it("round-trips through JSON, preserving bigint amounts", () => {
     const original = computeTax({ ...base, taxableAmount: ONE_LAKH });
     const restored = taxBreakdownFromJson(
-      JSON.parse(JSON.stringify(taxBreakdownToJson(original))),
+      JSON.parse(JSON.stringify(taxBreakdownToJson(original, "INR"))),
+      "INR",
     );
 
     expect(restored.total).toBe(original.total);
@@ -214,7 +215,7 @@ describe("tax breakdown serialisation", () => {
   });
 
   it("serialises amounts as strings, since JSON has no bigint", () => {
-    const json = taxBreakdownToJson(computeTax({ ...base, taxableAmount: ONE_LAKH }));
+    const json = taxBreakdownToJson(computeTax({ ...base, taxableAmount: ONE_LAKH }), "INR");
     expect(typeof json.total).toBe("string");
     expect(() => JSON.stringify(json)).not.toThrow();
   });

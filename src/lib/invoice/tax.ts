@@ -1,4 +1,4 @@
-import { applyRate } from "./money";
+import { applyRate, fromDecimalString, toDecimalString } from "./money";
 
 /**
  * Tax computation.
@@ -144,26 +144,42 @@ function withTotal(components: TaxComponent[]): TaxBreakdown {
   };
 }
 
-export function taxBreakdownToJson(breakdown: TaxBreakdown): TaxBreakdownJson {
+/**
+ * Serialise for storage, as decimal strings.
+ *
+ * Decimal rather than minor units so the stored breakdown matches the
+ * `subtotal` and `total` numeric columns beside it, and so anything reading it
+ * back — the PDF, an export, a support query — gets a printable figure without
+ * needing to know the currency's minor-unit count. Dividing by 100 downstream
+ * would silently produce wrong numbers for JPY and the other zero-decimal
+ * currencies.
+ */
+export function taxBreakdownToJson(
+  breakdown: TaxBreakdown,
+  currency: string,
+): TaxBreakdownJson {
   return {
     components: breakdown.components.map((c) => ({
       label: c.label,
       rateBasisPoints: c.rateBasisPoints,
-      amount: c.amount.toString(),
+      amount: toDecimalString(c.amount, currency),
     })),
-    total: breakdown.total.toString(),
+    total: toDecimalString(breakdown.total, currency),
     note: breakdown.note,
   };
 }
 
-export function taxBreakdownFromJson(json: TaxBreakdownJson): TaxBreakdown {
+export function taxBreakdownFromJson(
+  json: TaxBreakdownJson,
+  currency: string,
+): TaxBreakdown {
   return {
     components: json.components.map((c) => ({
       label: c.label,
       rateBasisPoints: c.rateBasisPoints,
-      amount: BigInt(c.amount),
+      amount: fromDecimalString(c.amount, currency),
     })),
-    total: BigInt(json.total),
+    total: fromDecimalString(json.total, currency),
     note: json.note,
   };
 }
