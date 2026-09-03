@@ -19,11 +19,28 @@ export type AuthActionState = {
 };
 
 /**
- * Where Supabase should send the user back to. Derived from the request host
- * rather than hardcoded, so preview deployments work without extra config —
- * falling back to the configured app URL when there is no host header.
+ * Where Supabase should send the user back to after email confirmation or
+ * OAuth.
+ *
+ * The order here matters and is not obvious:
+ *
+ * 1. A Vercel preview deployment gets a unique hostname that cannot be known
+ *    when the environment variable is set, so the configured production URL
+ *    would bounce anyone testing a preview over to production — signing them
+ *    in to the wrong environment.
+ * 2. Otherwise the configured URL wins. It is set by whoever deploys the app
+ *    and cannot be influenced by a request.
+ * 3. The host header is the last resort, for local development. It is
+ *    attacker-controlled, so trusting it ahead of configuration would let a
+ *    forged Host redirect an auth code to another origin. Supabase checks
+ *    redirect targets against its own allowlist as well, but defence in depth
+ *    is cheap here.
  */
 async function getAppUrl() {
+  if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
   const configured = process.env.NEXT_PUBLIC_APP_URL;
   if (configured) return configured.replace(/\/$/, "");
 
