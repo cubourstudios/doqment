@@ -1,0 +1,1 @@
+-- RLS policies, triggers land here in the backend integration phase (CLAUDE.md §7, D7).

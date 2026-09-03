@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* "TASA Orbiter Display" (design-system.md §2) is proprietary and not bundled —
+     display headings fall back to the body font family until a licensed file
+     is supplied. */
+  --font-display: var(--font-body);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  /* Base body font-size floor per CLAUDE.md §2.4 — never smaller, to avoid
+     unwanted zoom on iOS Safari input focus. */
+  font-size: 16px;
+}
