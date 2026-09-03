@@ -9,6 +9,7 @@ import { clients, documents, documentVersions, invoices, projects } from "@/db/s
 import { requireProfile } from "@/lib/auth";
 import { getCountryConfig } from "@/lib/regions";
 import { stateCodeFromGstin } from "@/lib/invoice/tax";
+import { taxRateFromComponents } from "@/lib/invoice/round-trip";
 import type { InvoicePdfData } from "@/components/pdf/invoice-document";
 
 import { InvoiceForm } from "@/app/(app)/projects/[id]/documents/new/invoice-form";
@@ -92,17 +93,7 @@ export default async function EditInvoicePage({
           dueDate: data.dueDate ?? "",
           discount: data.discount === "0.00" ? "" : data.discount,
           notes: data.notes ?? "",
-          taxRateBasisPoints:
-            data.tax.components[0]
-              ? data.tax.components.length > 1
-                // CGST and SGST are each half, so the invoice's rate is their
-                // sum — reading only the first would halve it on every edit.
-                ? data.tax.components.reduce(
-                    (total, c) => total + c.rateBasisPoints,
-                    0,
-                  )
-                : data.tax.components[0].rateBasisPoints
-              : 0,
+          taxRateBasisPoints: taxRateFromComponents(data.tax.components),
           lineItems: data.lineItems.map((item) => ({
             description: item.description,
             quantity: item.quantity,

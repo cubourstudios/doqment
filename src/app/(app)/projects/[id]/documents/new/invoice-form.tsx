@@ -18,6 +18,7 @@ import { SubmitButton } from "@/components/auth/submit-button";
 import { calculateInvoice } from "@/lib/invoice/calculate";
 import { formatMinor } from "@/lib/invoice/money";
 import { GST_RATES } from "@/lib/schemas/invoice";
+import { addDays } from "@/lib/invoice/round-trip";
 import type { DocumentState } from "../actions";
 
 type Line = { id: number; description: string; quantity: string; unitPrice: string };
@@ -45,14 +46,6 @@ const PAYMENT_TERMS = [
   { days: 15, label: "Net 15" },
   { days: 30, label: "Net 30" },
 ] as const;
-
-/** Date arithmetic on the ISO string, to avoid a timezone shifting the day. */
-function addDays(isoDate: string, days: number): string {
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return "";
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
 
 const TODAY = () => new Date().toISOString().slice(0, 10);
 

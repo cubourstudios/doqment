@@ -10,6 +10,7 @@ import { requireProfile } from "@/lib/auth";
 import { getCountryConfig } from "@/lib/regions";
 import { peekNextInvoiceNumber } from "@/lib/invoice/numbering";
 import { stateCodeFromGstin } from "@/lib/invoice/tax";
+import { hasAddress } from "@/lib/invoice/round-trip";
 import { DOC_TYPE_LABELS } from "@/lib/labels";
 import { Button } from "@/components/ui/button";
 import { requiresDisclaimer } from "@/lib/disclaimers";
@@ -209,19 +210,3 @@ function Shell({
   );
 }
 
-/**
- * An address counts as present only if it has a non-empty line.
- *
- * The column stores `{ lines: [...] }`, and a saved-then-cleared field leaves
- * an empty array behind — which is not an address, however truthy the object is.
- */
-function hasAddress(addressJson: unknown): boolean {
-  if (!addressJson || typeof addressJson !== "object") return false;
-
-  const lines = (addressJson as { lines?: unknown }).lines;
-
-  return (
-    Array.isArray(lines) &&
-    lines.some((line) => typeof line === "string" && line.trim() !== "")
-  );
-}
