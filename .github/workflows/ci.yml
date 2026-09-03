@@ -19,9 +19,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           # Matches the engines field. Supabase SSR and Next both want 18.17+,
           # and local/CI drift here produces cryptic auth-cookie bugs rather
@@ -31,6 +31,15 @@ jobs:
 
       - name: Install
         run: npm ci
+
+      # Next generates the global PageProps and LayoutProps types into .next/
+      # during a build or dev run. They are gitignored, so on a fresh checkout
+      # they do not exist and every typed route fails with "Cannot find name
+      # 'PageProps'". This is not a CI quirk — a contributor cloning the repo
+      # and running the typecheck hits it identically. typegen produces them
+      # without paying for a full build.
+      - name: Generate route types
+        run: npx next typegen
 
       # Each check runs as its own step so a failure names itself in the UI
       # rather than hiding inside a combined "build" step.
