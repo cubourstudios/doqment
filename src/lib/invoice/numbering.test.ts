@@ -4,6 +4,7 @@ import { getInvoiceSeries } from "@/lib/regions";
 import {
   DEFAULT_PREFIX,
   formatInvoiceNumber,
+  peekNextInvoiceNumber,
   seriesResetsOn,
 } from "./numbering";
 
@@ -92,6 +93,91 @@ describe("series boundaries", () => {
     expect(formatInvoiceNumber("INV", before, 1)).not.toBe(
       formatInvoiceNumber("INV", after, 1),
     );
+  });
+});
+
+/**
+ * A stand-in for `db` that answers the counter lookup and records every method
+ * the caller reaches for. No Postgres: what is under test is which number the
+ * preview arrives at, and that getting there only ever reads.
+ */
+function fakeDb(rows: { lastNumber: number; prefix: string | null }[]) {
+  const methods: string[] = [];
+
+  const chain: unknown = new Proxy(
+    {},
+    {
+      get(_target, property) {
+        if (typeof property !== "string") return undefined;
+        methods.push(property);
+        if (property === "limit") return async () => rows;
+        return () => chain;
+      },
+    },
+  );
+
+  return { db: chain as Parameters<typeof peekNextInvoiceNumber>[0], methods };
+}
+
+const ISSUED = new Date("2026-09-03T00:00:00Z");
+
+describe("peekNextInvoiceNumber", () => {
+  it("shows the number after the one last used", async () => {
+    const { db } = fakeDb([{ lastNumber: 7, prefix: "RIYA" }]);
+
+    expect(await peekNextInvoiceNumber(db, "user-1", "IN", ISSUED)).toBe(
+      "RIYA/FY2026-27/0008",
+    );
+  });
+
+  it("starts a user with no counter row at 0001", async () => {
+    // First invoice ever, or first of a new financial year: the counter row is
+    // created by the reservation, not by the preview.
+    const { db } = fakeDb([]);
+
+    expect(await peekNextInvoiceNumber(db, "user-1", "IN", ISSUED)).toBe(
+      `${DEFAULT_PREFIX}/FY2026-27/0001`,
+    );
+  });
+
+  it("falls back to the default prefix when the counter has none", async () => {
+    const { db } = fakeDb([{ lastNumber: 3, prefix: null }]);
+
+    expect(await peekNextInvoiceNumber(db, "user-1", "IN", ISSUED)).toBe(
+      `${DEFAULT_PREFIX}/FY2026-27/0004`,
+    );
+  });
+
+  it("uses the series the issue date falls in, not today's", async () => {
+    // Back-dating an invoice to 31 March must number it in the old year.
+    const { db } = fakeDb([{ lastNumber: 9, prefix: null }]);
+
+    expect(
+      await peekNextInvoiceNumber(
+        db,
+        "user-1",
+        "IN",
+        new Date("2026-03-31T00:00:00Z"),
+      ),
+    ).toBe(`${DEFAULT_PREFIX}/FY2025-26/0010`);
+  });
+
+  /**
+   * The preview must not consume a number. A number reserved for a form the
+   * user then abandons is a gap in the series, and a gap in a GST series is
+   * the thing the numbering module exists to prevent.
+   */
+  it("reserves nothing — two previews return the same number", async () => {
+    const { db, methods } = fakeDb([{ lastNumber: 7, prefix: null }]);
+
+    const first = await peekNextInvoiceNumber(db, "user-1", "IN", ISSUED);
+    const second = await peekNextInvoiceNumber(db, "user-1", "IN", ISSUED);
+
+    expect(second).toBe(first);
+    expect(methods).toContain("select");
+    for (const write of ["insert", "update", "delete", "execute", "transaction"]) {
+      expect(methods).not.toContain(write);
+    }
   });
 });
 

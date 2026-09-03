@@ -1,4 +1,4 @@
-import type { Plan } from "./plans";
+import { limitsFor, type Plan } from "./plans";
 
 /**
  * What the user may generate right now, and what it costs.
@@ -21,6 +21,8 @@ const METERED_TYPE = "invoice";
 
 export type Allowance = {
   plan: Plan;
+  /** The enforced monthly limit. Null on Pro, which is unlimited. */
+  monthlyAllowance: number | null;
   /** Free invoices left this month. Null on Pro, which is unlimited. */
   freeInvoicesRemaining: number | null;
   /** Credits held, each covering one chargeable document. */
@@ -39,11 +41,20 @@ export type DocumentEntitlement = {
   coveredBy: "plan" | "allowance" | "credit" | "payment";
 };
 
-/** TODO(credits): read from the database. These are invented values. */
+/**
+ * TODO(credits): read from the database. The counts are invented; the monthly
+ * limit is not — it comes from plans.ts, so the strip cannot advertise an
+ * allowance different from the one canCreateDocument actually enforces. Saying
+ * "3 free this month" beside a limit of 5 is how a user learns not to trust
+ * the number.
+ */
 export function getAllowance(plan: Plan, currency = "INR"): Allowance {
+  const { maxDocumentsPerMonth } = limitsFor(plan);
+
   return {
     plan,
-    freeInvoicesRemaining: plan === "pro" ? null : 2,
+    monthlyAllowance: maxDocumentsPerMonth,
+    freeInvoicesRemaining: maxDocumentsPerMonth === null ? null : 2,
     credits: plan === "pro" ? 0 : 3,
     perDocumentCost: 2900,
     currency,
@@ -65,36 +76,41 @@ export function entitlementFor(
   }
 
   if (docType === METERED_TYPE) {
-    const left = allowance.freeInvoicesRemaining ?? 0;
+    const left = Math.max(0, allowance.freeInvoicesRemaining ?? 0);
 
-    return left > 0
-      ? {
-          allowed: true,
-          reason: `${left} of 3 free this month`,
-          cost: 0,
-          coveredBy: "allowance",
-        }
-      : {
-          allowed: true,
-          reason: "Free invoices used up this month",
-          cost: allowance.perDocumentCost,
-          coveredBy: allowance.credits > 0 ? "credit" : "payment",
-        };
+    if (left > 0) {
+      return {
+        allowed: true,
+        reason: allowance.monthlyAllowance
+          ? `${left} of ${allowance.monthlyAllowance} free this month`
+          : `${left} free this month`,
+        cost: 0,
+        coveredBy: "allowance",
+      };
+    }
+    // Out of allowance: falls through to the credit-or-pay path below, so an
+    // invoice and a proposal are priced by the same rule rather than by two
+    // branches that could disagree.
   }
 
-  return allowance.credits > 0
-    ? {
-        allowed: true,
-        reason: `Uses 1 of your ${allowance.credits} credits`,
-        cost: 0,
-        coveredBy: "credit",
-      }
-    : {
-        allowed: true,
-        // Charged at download, never at generation — the user sees the real
-        // document watermarked before anything asks them to pay.
-        reason: "Charged when you download",
-        cost: allowance.perDocumentCost,
-        coveredBy: "payment",
-      };
+  // A held credit covers the document outright — it was paid for when the pack
+  // was bought, so the cost here is zero. Reporting both a cost and "covered by
+  // credit" is a contradiction the download step would have to resolve.
+  if (allowance.credits > 0) {
+    return {
+      allowed: true,
+      reason: `Uses 1 of your ${allowance.credits} credits`,
+      cost: 0,
+      coveredBy: "credit",
+    };
+  }
+
+  return {
+    allowed: true,
+    // Charged at download, never at generation — the user sees the real
+    // document watermarked before anything asks them to pay.
+    reason: "Charged when you download",
+    cost: allowance.perDocumentCost,
+    coveredBy: "payment",
+  };
 }

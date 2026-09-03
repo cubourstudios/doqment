@@ -426,4 +426,51 @@ describe("formatCurrencyValues", () => {
   it("leaves an empty fee empty", () => {
     expect(formatCurrencyValues(schema, { fee: "" }, "INR").fee).toBe("");
   });
+
+  it("groups a contract fee by the currency, not always in lakhs", () => {
+    // The same locale bug as the invoice totals, reached through a different
+    // door: a US freelancer's service agreement read "$12,34,567.89".
+    expect(formatCurrencyValues(schema, { fee: "1234567.89" }, "USD").fee).toBe(
+      "$1,234,567.89",
+    );
+    expect(formatCurrencyValues(schema, { fee: "1234567.89" }, "INR").fee).toBe(
+      "₹12,34,567.89",
+    );
+  });
+
+  it("accepts a fee typed with separators already in it", () => {
+    // People type what they see on their own invoices.
+    expect(formatCurrencyValues(schema, { fee: "2,50,000" }, "INR").fee).toBe(
+      "₹2,50,000.00",
+    );
+  });
+
+  it("leaves a whitespace-only fee exactly as typed", () => {
+    expect(formatCurrencyValues(schema, { fee: "   " }, "INR").fee).toBe("   ");
+  });
+
+  it("leaves a value with no field in the schema alone", () => {
+    // Values can outlive a template edit; a stale key must not be reformatted
+    // on a guess about what it once was.
+    const out = formatCurrencyValues(schema, { fee: "100", stale: "250000" }, "INR");
+    expect(out.stale).toBe("250000");
+  });
+
+  it("does not touch a checkbox value that landed in a currency field", () => {
+    // A template edited from checkbox to currency leaves booleans in saved
+    // values; "true" formatted as money would be a nonsense fee clause.
+    const out = formatCurrencyValues(schema, { fee: true }, "INR");
+    expect(out.fee).toBe(true);
+  });
+
+  it("returns a new object rather than editing the form's values", () => {
+    // The same values object is handed to the live preview and to the save;
+    // formatting in place would store "₹2,50,000.00" as the field's value and
+    // re-format it on the next render.
+    const values = { fee: "250000", note: "x" };
+    const out = formatCurrencyValues(schema, values, "INR");
+
+    expect(values.fee).toBe("250000");
+    expect(out).not.toBe(values);
+  });
 });

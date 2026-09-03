@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   applyRate,
+  formatDecimal,
   formatMinor,
   fromDecimalString,
   lineAmount,
@@ -189,5 +190,54 @@ describe("grouping by currency", () => {
   it("groups every other currency in thousands", () => {
     expect(formatMinor(12345678n, "USD")).toBe("$123,456.78");
     expect(formatMinor(12345678n, "EUR")).toBe("€123,456.78");
+  });
+
+  it("picks the grouping from the currency, not the currency's case", () => {
+    // Currency codes arrive from a `varchar` column and from form values, and
+    // nothing guarantees the case. "inr" grouped in thousands would show an
+    // Indian user $-style digits on their own invoice.
+    expect(formatMinor(12345678n, "inr")).toBe("₹1,23,456.78");
+  });
+
+  it("groups a zero-decimal currency in thousands and prints no fraction", () => {
+    // JPY has no minor unit; a trailing ".00" here is a hundredfold-looking
+    // amount to a Japanese client.
+    expect(formatMinor(12345678n, "JPY")).toBe("¥12,345,678");
+  });
+
+  it("keeps lakh grouping below the point where the locales agree", () => {
+    // Under ₹1,00,000 en-IN and en-US group identically, so a test only at
+    // lakh scale could pass with either locale hardcoded. This pins the pair.
+    expect(formatMinor(9999999n, "INR")).toBe("₹99,999.99");
+    expect(formatMinor(9999999n, "USD")).toBe("$99,999.99");
+  });
+});
+
+/**
+ * The path the UI actually takes: totals reach a page as decimal strings read
+ * straight from `numeric` columns, so this is where the lakh-versus-thousands
+ * bug was visible to a user.
+ */
+describe("formatDecimal", () => {
+  it("groups a stored rupee total in lakhs", () => {
+    expect(formatDecimal("118000.00", "INR")).toBe("₹1,18,000.00");
+  });
+
+  it("groups a stored total in every other currency in thousands", () => {
+    expect(formatDecimal("123456.78", "USD")).toBe("$123,456.78");
+  });
+
+  it("agrees with formatMinor for the same amount", () => {
+    // Two entry points to one formatter; a fix applied to only one of them is
+    // how a total and its line items end up grouped differently on one page.
+    expect(formatDecimal("123456.78", "INR")).toBe(
+      formatMinor(12345678n, "INR"),
+    );
+  });
+
+  it("shows a malformed stored value rather than blanking the page", () => {
+    // A bad row is a support ticket; a thrown error inside a server component
+    // is a blank dashboard for everything else on it too.
+    expect(formatDecimal("not a number", "INR")).toBe("INR not a number");
   });
 });

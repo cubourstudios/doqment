@@ -111,10 +111,19 @@ export function RecentDocuments({ rows }: { rows: RecentDocument[] }) {
                 ) : null}
               </span>
 
+              {/*
+                timeZone is pinned because this component is server-rendered
+                and then hydrated: without it the server formats in its own
+                zone (UTC on Vercel) and the browser in the reader's, so any
+                document created after ~18:30 UTC renders a different day on
+                each side — a React hydration mismatch, and a date that changes
+                under the reader. The chart labels pin UTC for the same reason.
+              */}
               <span className="text-muted-foreground text-sm md:col-span-2">
                 {row.createdAt.toLocaleDateString("en", {
                   day: "numeric",
                   month: "short",
+                  timeZone: "UTC",
                 })}
               </span>
 

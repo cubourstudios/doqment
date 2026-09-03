@@ -130,15 +130,33 @@ export type MonthlyTotals = {
   paid: number;
 };
 
-/** The last `months` calendar months, oldest first, including the current one. */
-function recentMonths(months: number): { month: string; label: string }[] {
-  const now = new Date();
+/** "2026-09" for a year and a zero-indexed month, normalising overflow. */
+function monthKey(year: number, monthIndex: number): string {
+  const d = new Date(Date.UTC(year, monthIndex, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * `months` calendar months ending at `lastMonth`, oldest first.
+ *
+ * The window used to be derived from the server's UTC clock, which quietly
+ * dropped data for anyone ahead of UTC: at 00:30 on 1 October in India it is
+ * still 30 September in UTC, so October had no bucket and an invoice dated
+ * that day matched nothing and vanished from the chart. Invoice issue dates
+ * are plain calendar dates with no zone attached, and the server cannot know
+ * the reader's; so the window is anchored on the data instead — see the caller.
+ */
+function monthsEndingAt(
+  lastMonth: string,
+  months: number,
+): { month: string; label: string }[] {
+  const [year, month] = lastMonth.split("-").map(Number);
   const out: { month: string; label: string }[] = [];
 
   for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    const d = new Date(Date.UTC(year, month - 1 - i, 1));
     out.push({
-      month: `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`,
+      month: monthKey(d.getUTCFullYear(), d.getUTCMonth()),
       label: d.toLocaleDateString("en", { month: "short", timeZone: "UTC" }),
     });
   }
@@ -159,8 +177,13 @@ export async function getMonthlyTotals(
   currency: string,
   months = 6,
 ): Promise<MonthlyTotals[]> {
-  const buckets = recentMonths(months);
-  const earliest = `${buckets[0].month}-01`;
+  // A month of slack on each side of the UTC window, so a reader whose local
+  // calendar is ahead of or behind UTC still has their newest invoices in the
+  // result set. Which months are actually shown is decided below, from the
+  // data, so nothing in range can be silently dropped.
+  const now = new Date();
+  const utcMonth = monthKey(now.getUTCFullYear(), now.getUTCMonth());
+  const fetchFrom = `${monthKey(now.getUTCFullYear(), now.getUTCMonth() - months)}-01`;
 
   const rows = await db
     .select({
@@ -168,6 +191,7 @@ export async function getMonthlyTotals(
       total: invoices.total,
       currency: invoices.currency,
       status: invoices.status,
+      paidAt: invoices.paidAt,
     })
     .from(invoices)
     .leftJoin(documents, eq(invoices.documentId, documents.id))
@@ -175,12 +199,26 @@ export async function getMonthlyTotals(
       and(
         eq(invoices.userId, userId),
         isNull(documents.deletedAt),
-        gte(invoices.issueDate, earliest),
+        gte(invoices.issueDate, fetchFrom),
       ),
     );
 
+  // End the window at the newest month the user actually has data in, when
+  // that is ahead of UTC — which is what stops an invoice dated "today" in a
+  // zone ahead of the server falling outside every bucket.
+  const newest = rows.reduce(
+    (latest, row) =>
+      row.issueDate && row.issueDate.slice(0, 7) > latest
+        ? row.issueDate.slice(0, 7)
+        : latest,
+    utcMonth,
+  );
+
   const byMonth = new Map(
-    buckets.map((b) => [b.month, { ...b, invoiced: 0, paid: 0 }]),
+    monthsEndingAt(newest, months).map((b) => [
+      b.month,
+      { ...b, invoiced: 0, paid: 0 },
+    ]),
   );
 
   // Not a hardcoded 100: JPY and the other zero-decimal currencies would come
@@ -192,12 +230,38 @@ export async function getMonthlyTotals(
     // the figures above the chart are.
     if (row.currency !== currency || !row.issueDate) continue;
 
-    const bucket = byMonth.get(row.issueDate.slice(0, 7));
-    if (!bucket) continue;
+    // Amounts come from a `numeric` column and should always parse; a row that
+    // somehow does not must not take the whole dashboard down with it.
+    let amount: number;
+    try {
+      amount = Number(fromDecimalString(row.total, currency)) / perMajorUnit;
+    } catch {
+      continue;
+    }
 
-    const amount = Number(fromDecimalString(row.total, currency)) / perMajorUnit;
-    bucket.invoiced += amount;
-    if (row.status === "paid") bucket.paid += amount;
+    if (!Number.isFinite(amount)) continue;
+
+    const issuedIn = byMonth.get(row.issueDate.slice(0, 7));
+    if (issuedIn) issuedIn.invoiced += amount;
+
+    /*
+     * Received is bucketed by when the money arrived, not when the invoice was
+     * raised. Using the issue date put a paid invoice in both bars of the same
+     * month, which made the one thing this chart exists to show — how far the
+     * money lags the work — impossible to see. An invoice issued in April and
+     * paid in September belongs in April's "invoiced" and September's
+     * "received".
+     */
+    if (row.status === "paid") {
+      const paidMonth = row.paidAt
+        ? monthKey(row.paidAt.getUTCFullYear(), row.paidAt.getUTCMonth())
+        : // Paid before paid_at was recorded: fall back to the issue month
+          // rather than dropping the amount entirely.
+          row.issueDate.slice(0, 7);
+
+      const paidIn = byMonth.get(paidMonth);
+      if (paidIn) paidIn.paid += amount;
+    }
   }
 
   return [...byMonth.values()];

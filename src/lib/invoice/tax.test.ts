@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { GST_RATES } from "@/lib/schemas/invoice";
 import { toDecimalString } from "./money";
 import {
   computeTax,
@@ -247,5 +248,72 @@ describe("an odd rate", () => {
 
     expect(cgst.rateBasisPoints).toBe(900);
     expect(sgst.rateBasisPoints).toBe(900);
+  });
+
+  it("gives the odd basis point to SGST rather than dropping it", () => {
+    // 25bp splits 12 + 13. Rounding both halves to 12 would under-collect and
+    // leave the freelancer owing the difference at filing time.
+    const [cgst, sgst] = computeTax({
+      ...base,
+      rateBasisPoints: 25,
+      taxableAmount: ONE_LAKH,
+    }).components;
+
+    expect(cgst.rateBasisPoints).toBe(12);
+    expect(sgst.rateBasisPoints).toBe(13);
+  });
+
+  it("computes rather than throws for any odd rate", () => {
+    // The RangeError came from BigInt(900.5) inside applyRate, so it fires for
+    // every odd basis-point total, not only the 0.25% slab that surfaced it.
+    for (const rate of [1, 3, 25, 75, 125, 1801, 9999]) {
+      const breakdown = computeTax({
+        ...base,
+        rateBasisPoints: rate,
+        taxableAmount: ONE_LAKH,
+      });
+
+      const [cgst, sgst] = breakdown.components;
+      expect(cgst.rateBasisPoints + sgst.rateBasisPoints).toBe(rate);
+      expect(breakdown.total).toBe(cgst.amount + sgst.amount);
+    }
+  });
+
+  it("computes every rate the invoice form can submit", () => {
+    // The two modules have to agree: a rate the form offers that the
+    // calculation cannot split is a 500 on save, which is what this was.
+    for (const { value } of GST_RATES) {
+      expect(() =>
+        computeTax({ ...base, rateBasisPoints: value, taxableAmount: ONE_LAKH }),
+      ).not.toThrow();
+    }
+  });
+});
+
+describe("computeTax — who counts as foreign", () => {
+  it("does not zero-rate a client whose country was never recorded", () => {
+    // Only an explicitly foreign country is an export. Treating a blank
+    // country as foreign would drop GST from a domestic invoice, and the
+    // freelancer, not the client, owes that money.
+    const result = computeTax({
+      ...base,
+      clientCountry: null,
+      clientStateCode: "27",
+      taxableAmount: ONE_LAKH,
+    });
+
+    expect(result.components.map((c) => c.label)).toEqual(["IGST"]);
+    expect(toDecimalString(result.total)).toBe("18000.00");
+  });
+
+  it("reads the country case-insensitively", () => {
+    // Country codes come from a form and a `varchar` column; "in" is India.
+    const result = computeTax({
+      ...base,
+      clientCountry: "in",
+      taxableAmount: ONE_LAKH,
+    });
+
+    expect(result.components.map((c) => c.label)).toEqual(["CGST", "SGST"]);
   });
 });
