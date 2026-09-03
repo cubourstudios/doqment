@@ -7,6 +7,7 @@ import { ChevronLeftIcon, PencilIcon } from "lucide-react";
 import { db } from "@/db";
 import { clients, projects, uploads } from "@/db/schema";
 import { requireProfile } from "@/lib/auth";
+import { getUserPlan, limitsFor } from "@/lib/billing/plans";
 import { getCountryConfig } from "@/lib/regions";
 import {
   PROJECT_STATUS_LABELS,
@@ -153,7 +154,11 @@ export default async function ProjectPage({
         <p className="text-muted-foreground mb-3 text-sm">
           Anything already signed or sent elsewhere — keep it with the project.
         </p>
-        <ProjectUploads projectId={project.id} uploads={uploadsWithUrls} />
+        <ProjectUploads
+          projectId={project.id}
+          uploads={uploadsWithUrls}
+          maxUploadBytes={limitsFor(await getUserPlan(userId)).maxUploadBytes}
+        />
       </section>
 
       <div className="mt-10">

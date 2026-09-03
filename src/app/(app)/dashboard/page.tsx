@@ -54,13 +54,19 @@ export default async function DashboardPage() {
             <Stat
               label="Outstanding"
               value={formatMinor(data.outstanding.amount, currency)}
-              detail={`${data.outstanding.count} invoice${data.outstanding.count === 1 ? "" : "s"}`}
+              detail={invoiceCountDetail(
+                data.outstanding.count,
+                data.outstanding.otherCurrencyCount,
+              )}
               emphasis
             />
             <Stat
               label="Overdue"
               value={formatMinor(data.overdue.amount, currency)}
-              detail={`${data.overdue.count} invoice${data.overdue.count === 1 ? "" : "s"}`}
+              detail={invoiceCountDetail(
+                data.overdue.count,
+                data.overdue.otherCurrencyCount,
+              )}
               alert={data.overdue.count > 0}
             />
             <Stat
@@ -126,6 +132,18 @@ export default async function DashboardPage() {
       )}
     </div>
   );
+}
+
+/**
+ * The stat cards sum one currency. Saying so is better than a count that
+ * silently covers more invoices than the figure above it.
+ */
+function invoiceCountDetail(count: number, otherCurrencyCount: number): string {
+  const invoices = `${count} invoice${count === 1 ? "" : "s"}`;
+
+  return otherCurrencyCount > 0
+    ? `${invoices} · ${otherCurrencyCount} in another currency`
+    : invoices;
 }
 
 function Stat({

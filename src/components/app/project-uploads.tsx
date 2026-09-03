@@ -29,9 +29,11 @@ export type UploadRow = {
 export function ProjectUploads({
   projectId,
   uploads,
+  maxUploadBytes,
 }: {
   projectId: string;
   uploads: UploadRow[];
+  maxUploadBytes: number;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -106,7 +108,8 @@ export function ProjectUploads({
           </p>
         ) : (
           <p className="text-muted-foreground text-xs">
-            PDF, Word or image, up to 10 MB. Only you can see these.
+            PDF, Word or image, up to {formatBytes(maxUploadBytes)}. Only you can
+            see these.
           </p>
         )}
       </form>

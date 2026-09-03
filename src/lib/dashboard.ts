@@ -13,8 +13,14 @@ import { fromDecimalString } from "@/lib/invoice/money";
  */
 
 export type DashboardData = {
-  outstanding: { amount: bigint; count: number; currency: string };
-  overdue: { amount: bigint; count: number };
+  outstanding: {
+    amount: bigint;
+    count: number;
+    currency: string;
+    /** Invoices left out of `amount` because they are billed in something else. */
+    otherCurrencyCount: number;
+  };
+  overdue: { amount: bigint; count: number; otherCurrencyCount: number };
   paidThisYear: bigint;
   activeProjects: number;
   recentInvoices: {
@@ -43,6 +49,22 @@ function sumTotals(
   return rows
     .filter((row) => row.currency === currency)
     .reduce((total, row) => total + fromDecimalString(row.total, currency), 0n);
+}
+
+/**
+ * The count that goes with a summed amount.
+ *
+ * Counting every row while summing only one currency produced a card reading
+ * "₹80,000.00 · 3 invoices" where the figure covered two of them, with nothing
+ * saying so. The rows left out are reported separately rather than hidden.
+ */
+function countTotals(
+  rows: { currency: string }[],
+  currency: string,
+): { count: number; otherCurrencyCount: number } {
+  const included = rows.filter((row) => row.currency === currency).length;
+
+  return { count: included, otherCurrencyCount: rows.length - included };
 }
 
 export async function getDashboardData(
@@ -111,12 +133,12 @@ export async function getDashboardData(
   return {
     outstanding: {
       amount: sumTotals(unpaidRows, defaultCurrency),
-      count: unpaidRows.length,
+      ...countTotals(unpaidRows, defaultCurrency),
       currency: defaultCurrency,
     },
     overdue: {
       amount: sumTotals(overdueRows, defaultCurrency),
-      count: overdueRows.length,
+      ...countTotals(overdueRows, defaultCurrency),
     },
     paidThisYear: sumTotals(paidRows, defaultCurrency),
     activeProjects: activeProjectRows[0]?.value ?? 0,

@@ -1,4 +1,4 @@
-import { and, count, eq, gte, isNull } from "drizzle-orm";
+import { and, count, eq, gte } from "drizzle-orm";
 
 import { db } from "@/db";
 import { documents, profiles, projects } from "@/db/schema";
@@ -40,6 +40,14 @@ const LIMITS: Record<Plan, PlanLimits> = {
 
 export function limitsFor(plan: Plan): PlanLimits {
   return LIMITS[plan];
+}
+
+/** The month boundary the per-month document limit is counted from. */
+function startOfMonth(): Date {
+  const date = new Date();
+  date.setUTCDate(1);
+  date.setUTCHours(0, 0, 0, 0);
+  return date;
 }
 
 /**
@@ -98,10 +106,6 @@ export async function canCreateDocument(
   const { maxDocumentsPerMonth } = limitsFor(plan);
   if (maxDocumentsPerMonth === null) return { allowed: true };
 
-  const startOfMonth = new Date();
-  startOfMonth.setUTCDate(1);
-  startOfMonth.setUTCHours(0, 0, 0, 0);
-
   // Soft-deleted documents still count. Otherwise the limit is trivially
   // bypassed by deleting and recreating, and an invoice number was consumed
   // either way.
@@ -109,7 +113,10 @@ export async function canCreateDocument(
     .select({ value: count() })
     .from(documents)
     .where(
-      and(eq(documents.userId, userId), gte(documents.createdAt, startOfMonth)),
+      and(
+        eq(documents.userId, userId),
+        gte(documents.createdAt, startOfMonth()),
+      ),
     );
 
   const used = row?.value ?? 0;
@@ -124,23 +131,21 @@ export async function canCreateDocument(
 
 /** Counts for the billing screen, so the user sees where they actually stand. */
 export async function getUsage(userId: string) {
-  const startOfMonth = new Date();
-  startOfMonth.setUTCDate(1);
-  startOfMonth.setUTCHours(0, 0, 0, 0);
-
   const [projectRow, documentRow] = await Promise.all([
     db
       .select({ value: count() })
       .from(projects)
       .where(eq(projects.userId, userId)),
+    // Counted exactly as canCreateDocument counts, soft-deleted included.
+    // Excluding them showed "3 of 5" on the same screen that then refused a
+    // sixth document saying "you've created 5 of 5".
     db
       .select({ value: count() })
       .from(documents)
       .where(
         and(
           eq(documents.userId, userId),
-          gte(documents.createdAt, startOfMonth),
-          isNull(documents.deletedAt),
+          gte(documents.createdAt, startOfMonth()),
         ),
       ),
   ]);

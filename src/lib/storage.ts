@@ -16,9 +16,6 @@ import { createClient } from "@supabase/supabase-js";
 
 export const SIGNED_URL_TTL_SECONDS = 3600;
 
-/** 10 MB. Large enough for a scanned contract, small enough to bound abuse. */
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-
 export const ALLOWED_UPLOAD_TYPES = [
   "application/pdf",
   "image/png",

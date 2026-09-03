@@ -6,10 +6,10 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projects, uploads } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
+import { getUserPlan, limitsFor } from "@/lib/billing/plans";
 import { LIMITS, rateLimit } from "@/lib/rate-limit";
 import {
   ALLOWED_UPLOAD_TYPES,
-  MAX_UPLOAD_BYTES,
   buildStoragePath,
   deleteFile,
   uploadFile,
@@ -42,8 +42,12 @@ export async function uploadProjectFile(
     return { error: "Choose a file to upload." };
   }
 
-  if (file.size > MAX_UPLOAD_BYTES) {
-    return { error: "That file is larger than 10 MB." };
+  const { maxUploadBytes } = limitsFor(await getUserPlan(user.id));
+
+  if (file.size > maxUploadBytes) {
+    return {
+      error: `That file is larger than ${Math.round(maxUploadBytes / 1024 / 1024)} MB.`,
+    };
   }
 
   // The browser's reported type is a hint, not proof — but rejecting on it
