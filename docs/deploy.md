@@ -74,7 +74,10 @@ Once deployed, walk the path that touches every subsystem:
 4. Create an invoice → the PDF downloads and the rupee sign renders
 
 If the currency symbol shows as a blank box, the bundled font failed to load —
-check that `public/fonts/NotoSans-Variable.ttf` was deployed.
+check that `public/fonts/NotoSans-Regular.ttf` and `NotoSans-Bold.ttf` were
+deployed. Both are needed: they are static instances, one per weight, because
+registering a single variable font for two weights makes react-pdf build a
+broken glyph subset and silently drop characters from bold text.
 
 ## Preview deployments
 

@@ -10,16 +10,19 @@ import { Font } from "@react-pdf/renderer";
  * amount with a blank box where the currency symbol should be. That is the
  * single most visible way this product could embarrass its primary user.
  *
- * The bundled file is Noto Sans as a *variable* font, registered for both
- * weights. Static instances would be preferable — @react-pdf/renderer resolves
- * a variable font to its default instance, so bold text may render at regular
- * weight — but static Noto Sans TTFs were not reachable from the build
- * environment, and a cosmetic weight difference is a far smaller problem than
- * a missing currency symbol. Swapping in NotoSans-Regular.ttf and
- * NotoSans-Bold.ttf here is a drop-in improvement whenever they are to hand.
+ * Two *static* files, one per weight. This used to be a single variable font
+ * registered for both weights, and the cost was not cosmetic: react-pdf
+ * resolved weight 700 out of the variable file and built a broken glyph
+ * subset, so bold runs silently lost characters. A service agreement printed
+ * its heading as "ervice Agreement" and its clauses as ". ervices" and
+ * "2. ees and payment" — a contract with letters missing, sent to a client.
  *
- * The 2 MB download is one-time and client-side; the generated PDF embeds only
- * the glyphs actually used.
+ * Static instances are what react-pdf handles correctly, so each weight now
+ * points at its own file. Keep it that way: pointing both weights at one
+ * variable file brings the dropped glyphs straight back.
+ *
+ * The download is one-time and client-side; the generated PDF embeds only the
+ * glyphs actually used.
  */
 
 let registered = false;
@@ -30,8 +33,8 @@ export function registerPdfFonts() {
   Font.register({
     family: "Noto Sans",
     fonts: [
-      { src: "/fonts/NotoSans-Variable.ttf", fontWeight: 400 },
-      { src: "/fonts/NotoSans-Variable.ttf", fontWeight: 700 },
+      { src: "/fonts/NotoSans-Regular.ttf", fontWeight: 400 },
+      { src: "/fonts/NotoSans-Bold.ttf", fontWeight: 700 },
     ],
   });
 

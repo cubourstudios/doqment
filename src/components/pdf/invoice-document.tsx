@@ -72,8 +72,15 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   logo: { maxHeight: 44, maxWidth: 150, marginBottom: 8, objectFit: "contain" },
-  title: { fontSize: 22, fontWeight: 700 },
-  invoiceNumber: { fontSize: 10, color: "#475569", marginTop: 2 },
+  /*
+   * The heading needs its own line box. Noto Sans is registered as a variable
+   * font (see ./fonts.ts) and react-pdf mis-measures its metrics, so at 22pt
+   * the inherited line height left a box shorter than the glyphs — the invoice
+   * number below printed on top of the word "Invoice" on every PDF a client
+   * received. An explicit height on the heading is what keeps them apart.
+   */
+  title: { fontSize: 22, fontWeight: 700, lineHeight: 1.2, marginBottom: 6 },
+  invoiceNumber: { fontSize: 10, color: "#475569" },
   parties: { flexDirection: "row", gap: 32, marginBottom: 24 },
   party: { flex: 1 },
   partyLabel: {
