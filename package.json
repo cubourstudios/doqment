@@ -14,8 +14,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate && node scripts/strip-auth-table.mjs",
-    "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:migrate": "node --env-file-if-exists=.env.local node_modules/drizzle-kit/bin.cjs migrate",
+    "db:manual": "node --env-file-if-exists=.env.local scripts/apply-manual-sql.mjs",
+    "db:seed": "tsx --env-file-if-exists=.env.local src/db/seed.ts",
+    "db:check": "node --env-file-if-exists=.env.local scripts/check-db.mjs",
+    "db:setup": "npm run db:migrate && npm run db:manual && npm run db:seed && npm run db:check"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

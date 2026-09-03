@@ -13,6 +13,7 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Owner-only access, enforced by matching the first folder segment against the
 -- caller's user id.
+DROP POLICY IF EXISTS "own files" ON storage.objects;
 CREATE POLICY "own files" ON storage.objects
   FOR ALL
   USING (
