@@ -6,6 +6,7 @@ import { DownloadIcon, EyeIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { InvoiceDocument, type InvoicePdfData } from "./invoice-document";
+import { ContractDocument, type ContractPdfData } from "./contract-document";
 
 /**
  * PDF preview and download.
@@ -19,22 +20,35 @@ import { InvoiceDocument, type InvoicePdfData } from "./invoice-document";
  * on a phone that is a slow, hot, data-hungry thing to do to someone whose
  * actual intent is usually "download and send it".
  */
+export type PreviewDocument =
+  | { kind: "invoice"; data: InvoicePdfData }
+  | { kind: "contract"; data: ContractPdfData };
+
 export function InvoicePreview({
-  data,
+  document,
   fileName,
   watermark = false,
 }: {
-  data: InvoicePdfData;
+  document: PreviewDocument;
   fileName: string;
   watermark?: boolean;
 }) {
   const [showPreview, setShowPreview] = useState(false);
 
+  // Built once per render and reused by both the download link and the viewer,
+  // so the two can never disagree about what is being produced.
+  const element =
+    document.kind === "invoice" ? (
+      <InvoiceDocument data={document.data} watermark={watermark} />
+    ) : (
+      <ContractDocument data={document.data} watermark={watermark} />
+    );
+
   return (
     <div className="grid gap-4">
       <div className="flex flex-col gap-2 sm:flex-row">
         <PDFDownloadLink
-          document={<InvoiceDocument data={data} watermark={watermark} />}
+          document={element}
           fileName={fileName}
           className="w-full sm:w-auto"
         >
@@ -61,7 +75,7 @@ export function InvoicePreview({
       {showPreview ? (
         <div className="h-[70vh] overflow-hidden rounded-lg border">
           <PDFViewer width="100%" height="100%" showToolbar={false}>
-            <InvoiceDocument data={data} watermark={watermark} />
+            {element}
           </PDFViewer>
         </div>
       ) : null}

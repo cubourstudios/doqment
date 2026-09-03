@@ -11,6 +11,8 @@ import { getUserPlan, limitsFor } from "@/lib/billing/plans";
 import { DOC_TYPE_LABELS, INVOICE_STATUS_LABELS } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
 import type { InvoicePdfData } from "@/components/pdf/invoice-document";
+import type { ContractPdfData } from "@/components/pdf/contract-document";
+import type { PreviewDocument } from "@/components/pdf/invoice-preview";
 
 import { DocumentActions } from "./document-actions";
 import { InvoiceStatusForm } from "./invoice-status-form";
@@ -53,7 +55,21 @@ export default async function DocumentPage({
   const { document, version, invoice } = row;
 
   const plan = await getUserPlan(user.id);
-  const data = version.dataJson as InvoicePdfData;
+
+  /*
+   * Which renderer to use is decided by the stored version, not by the
+   * document's type. A version written before a type gained its own renderer
+   * must keep printing the way it always did — the snapshot is the contract.
+   */
+  const stored = version.dataJson as { kind?: string };
+
+  const preview: PreviewDocument =
+    stored.kind === "contract"
+      ? { kind: "contract", data: buildContractData(stored as never) }
+      : { kind: "invoice", data: version.dataJson as InvoicePdfData };
+
+  const invoiceData =
+    preview.kind === "invoice" ? preview.data : null;
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -74,7 +90,9 @@ export default async function DocumentPage({
           </h1>
           <p className="text-muted-foreground text-sm">
             {DOC_TYPE_LABELS[document.docType]}
-            {invoice ? ` · ${data.currency} ${data.total}` : ""}
+            {invoice && invoiceData
+              ? ` · ${invoiceData.currency} ${invoiceData.total}`
+              : ""}
           </p>
         </div>
 
@@ -95,7 +113,7 @@ export default async function DocumentPage({
 
       <div className="mt-6">
         <DocumentActions
-          data={data}
+          document={preview}
           fileName={`${document.title.replace(/\//g, "-")}.pdf`}
           watermark={limitsFor(plan).watermark}
         />
@@ -111,4 +129,19 @@ export default async function DocumentPage({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Contract versions store their rendered blocks, so printing one is a matter
+ * of reading the snapshot rather than re-running the template. A template
+ * revised after the fact must not change a document already sent.
+ */
+function buildContractData(stored: {
+  title?: string;
+  blocks?: { id: string; heading: string | null; text: string }[];
+}): ContractPdfData {
+  return {
+    title: stored.title ?? "Document",
+    blocks: stored.blocks ?? [],
+  };
 }

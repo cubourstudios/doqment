@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import type { InvoicePdfData } from "@/components/pdf/invoice-document";
+import type { PreviewDocument } from "@/components/pdf/invoice-preview";
 
 /**
  * @react-pdf/renderer must never reach a server component — it touches browser
@@ -19,15 +19,19 @@ const InvoicePreview = dynamic(
 );
 
 export function DocumentActions({
-  data,
+  document,
   fileName,
   watermark,
 }: {
-  data: InvoicePdfData;
+  document: PreviewDocument;
   fileName: string;
   watermark: boolean;
 }) {
   return (
-    <InvoicePreview data={data} fileName={fileName} watermark={watermark} />
+    <InvoicePreview
+      document={document}
+      fileName={fileName}
+      watermark={watermark}
+    />
   );
 }

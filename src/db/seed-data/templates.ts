@@ -390,6 +390,9 @@ function paymentReminder(region: Region): SeedTemplate {
     schema: {
       fields: [
         { name: "client_name", label: "Client name", type: "text", required: true, prefill: "client.name" },
+        // The reminder signs off with the sender's name, so the form has to
+        // ask for it. Without this field the sign-off renders as a gap.
+        { name: "provider_name", label: "Your name / business name", type: "text", required: true, prefill: "profile.businessName" },
         { name: "invoice_number", label: "Invoice number", type: "text", required: true },
         { name: "invoice_date", label: "Invoice date", type: "date", required: true },
         { name: "due_date", label: "Was due on", type: "date", required: true },
