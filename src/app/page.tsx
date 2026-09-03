@@ -11,6 +11,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { PRICING, PRO_FEATURES } from "@/lib/billing/pricing";
+import { DoqmentMark } from "@/components/brand/logo";
 
 const VALUE_PROPS = [
   {
@@ -55,7 +56,7 @@ export default function LandingPage() {
     <>
       <header className="safe-top flex h-14 items-center justify-between px-4 md:px-8">
         <span className="flex items-center gap-2 font-semibold">
-          <FileTextIcon className="size-5" />
+          <DoqmentMark className="text-primary size-5 shrink-0" />
           Doqment
         </span>
         <div className="flex items-center gap-1">

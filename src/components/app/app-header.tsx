@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileTextIcon, LogOutIcon, UserIcon } from "lucide-react";
+import {LogOutIcon, UserIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { logout } from "@/app/(auth)/actions";
+import { DoqmentMark } from "@/components/brand/logo";
 
 /**
  * Sticky top bar. On mobile it carries the wordmark and the account menu; the
@@ -27,7 +28,7 @@ export function AppHeader({
   return (
     <header className="bg-background/95 safe-top sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b px-4 backdrop-blur">
       <Link href="/dashboard" className="flex items-center gap-2 font-semibold md:hidden">
-        <FileTextIcon className="size-5" />
+        <DoqmentMark className="text-primary size-5 shrink-0" />
         Doqment
       </Link>
 

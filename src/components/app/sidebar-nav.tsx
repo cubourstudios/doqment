@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileTextIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "./nav-items";
+import { DoqmentMark } from "@/components/brand/logo";
 
 /** Desktop counterpart to the bottom tab bar. Same items, same order. */
 export function SidebarNav() {
@@ -17,7 +17,7 @@ export function SidebarNav() {
         href="/dashboard"
         className="flex h-14 items-center gap-2 px-5 font-semibold"
       >
-        <FileTextIcon className="size-5" />
+        <DoqmentMark className="text-primary size-5 shrink-0" />
         Doqment
       </Link>
 

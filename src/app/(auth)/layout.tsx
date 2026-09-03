@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileTextIcon } from "lucide-react";
+import { DoqmentMark } from "@/components/brand/logo";
 
 /**
  * Auth shell. Single column at every width — these forms have four fields at
@@ -14,7 +14,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
           href="/"
           className="mb-8 flex items-center justify-center gap-2 text-lg font-semibold"
         >
-          <FileTextIcon className="size-5" />
+          <DoqmentMark className="text-primary size-5 shrink-0" />
           Doqment
         </Link>
         {children}
