@@ -1,0 +1,50 @@
+name: CI
+
+# Runs the same four checks a contributor runs locally. Without this, a pull
+# request reports "no checks" and reads as green when nothing has looked at it
+# — which is how a branch with failing tests gets merged in good faith.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push makes the previous run's answer irrelevant, so cancel it rather
+# than paying for a result nobody will read.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the engines field. Supabase SSR and Next both want 18.17+,
+          # and local/CI drift here produces cryptic auth-cookie bugs rather
+          # than an honest version error.
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Each check runs as its own step so a failure names itself in the UI
+      # rather than hiding inside a combined "build" step.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Test
+        run: npx vitest run
+
+      # The build needs no database credentials: src/db/index.ts defers
+      # connecting until first query precisely so that `next build` cannot
+      # require production secrets. A failure here is a real code problem.
+      - name: Build
+        run: npm run build
