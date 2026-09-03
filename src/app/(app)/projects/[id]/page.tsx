@@ -13,6 +13,7 @@ import {
   PROJECT_TYPE_LABELS,
   valueBandLabel,
 } from "@/lib/labels";
+import { getProjectChecklist } from "@/lib/guidance/service";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { DocumentChecklist } from "@/components/app/document-checklist";
 
 import { DeleteProjectButton } from "./delete-project-button";
 
@@ -45,6 +47,13 @@ export default async function ProjectPage({
   if (!row) notFound();
 
   const { project, client } = row;
+
+  const checklist = await getProjectChecklist(
+    userId,
+    profile.country,
+    project,
+    client?.country ?? null,
+  );
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -91,6 +100,18 @@ export default async function ProjectPage({
           {valueBandLabel(project.valueBand, profile.currency ?? "USD")}
         </Badge>
       </div>
+
+      {/* The checklist comes before the project's own details on purpose: it
+          is what the user came here for, and on a phone whatever sits at the
+          top of the page is what gets read. */}
+      <section className="mt-6">
+        <h2 className="mb-1 font-semibold">Documents you need</h2>
+        <p className="text-muted-foreground mb-4 text-sm">
+          Based on {checklist.input.clientRelationship === "new" ? "a new" : "a repeat"}{" "}
+          client and the size of this project.
+        </p>
+        <DocumentChecklist projectId={project.id} checklist={checklist} />
+      </section>
 
       <Card className="mt-6">
         <CardHeader>
