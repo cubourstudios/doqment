@@ -4,12 +4,19 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * shadcn/ui token layer (slate base), authored by hand.
+ * shadcn/ui token layer (slate base).
  *
- * `npx shadcn init` could not run in the build environment that set this up —
- * ui.shadcn.com is blocked there — so these tokens and the components in
- * src/components/ui are vendored directly. components.json is accurate, so
- * `npx shadcn add <component>` works normally on a machine with network access.
+ * The shadcn CLI cannot run in the environment this was built in —
+ * ui.shadcn.com is blocked by network policy — so the components in
+ * src/components/ui were copied from the upstream repo's registry
+ * (github.com/shadcn-ui/ui, apps/v4/registry/new-york-v4/ui) rather than
+ * generated. They are byte-identical to upstream apart from changes marked
+ * "DOQMENT DEVIATION FROM UPSTREAM", which are almost all mobile touch targets.
+ *
+ * components.json is accurate, so `npx shadcn add <component>` works normally
+ * from a machine with network access.
+ *
+ * The essential/recommended/situational tokens below are ours, not shadcn's.
  */
 
 :root {
