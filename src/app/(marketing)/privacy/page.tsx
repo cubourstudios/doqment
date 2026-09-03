@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+
+import { LegalPage, type LegalSection } from "@/app/(marketing)/legal-page";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -16,26 +17,14 @@ export const metadata: Metadata = {
  * Drafted from common practice, not by a lawyer. Have it reviewed before
  * launch, particularly if you take EU or UK users.
  */
-export default function PrivacyPage() {
-  return (
-    <article className="mx-auto w-full max-w-2xl px-4 py-12">
-      <Link
-        href="/"
-        className="text-muted-foreground hover:text-foreground text-sm"
-      >
-        ← Doqment
-      </Link>
-
-      <h1 className="mt-6 text-3xl font-semibold tracking-tight">
-        Privacy Policy
-      </h1>
-      <p className="text-muted-foreground mt-2 text-sm">
-        Last updated 3 September 2026
-      </p>
-
-      <Section title="What we store">
+const SECTIONS: LegalSection[] = [
+  {
+    id: "what-we-store",
+    title: "What we store",
+    body: (
+      <>
         <p>Only what the product needs to work:</p>
-        <ul className="grid list-disc gap-1 pl-5">
+        <ul className="grid list-disc gap-2 pl-5">
           <li>Your email address and name, to identify your account.</li>
           <li>
             Your business details — business name, country, tax registration
@@ -51,21 +40,33 @@ export default function PrivacyPage() {
           </li>
           <li>Files you upload, in private storage.</li>
         </ul>
-      </Section>
-
-      <Section title="What we do not store">
+      </>
+    ),
+  },
+  {
+    id: "what-we-do-not-store",
+    title: "What we do not store",
+    body: (
+      <>
         <p>
-          <strong>Card details never touch our servers.</strong> Payments go
-          directly to Razorpay, who handles the card and tells us only
-          whether a subscription is active.
+          <strong className="text-foreground font-semibold">
+            Card details never touch our servers.
+          </strong>{" "}
+          Payments go directly to Razorpay, who handles the card and tells us
+          only whether a subscription is active.
         </p>
         <p>
           We do not sell your data, and we do not use the contents of your
           documents to train anything.
         </p>
-      </Section>
-
-      <Section title="Who can see it">
+      </>
+    ),
+  },
+  {
+    id: "who-can-see-it",
+    title: "Who can see it",
+    body: (
+      <>
         <p>
           Your data is isolated at the database level, not just in application
           code: every table carries a row-level security policy that ties each
@@ -76,17 +77,25 @@ export default function PrivacyPage() {
           Uploaded files sit in private storage and are reachable only through
           links that expire after an hour.
         </p>
-      </Section>
-
-      <Section title="Who we share it with">
-        <p>
-          Only the services needed to run Doqment: Supabase (database,
-          authentication and file storage), Vercel (hosting), and Razorpay or
-          Razorpay for payments. Each sees only what its job requires.
-        </p>
-      </Section>
-
-      <Section title="Getting it back, or getting rid of it">
+      </>
+    ),
+  },
+  {
+    id: "who-we-share-it-with",
+    title: "Who we share it with",
+    body: (
+      <p>
+        Only the services needed to run Doqment: Supabase (database,
+        authentication and file storage), Vercel (hosting), and Razorpay
+        (payments). Each sees only what its job requires.
+      </p>
+    ),
+  },
+  {
+    id: "export-and-deletion",
+    title: "Getting it back, or getting rid of it",
+    body: (
+      <>
         <p>
           Settings has a one-click export that gives you everything as JSON,
           including full document contents — not a summary.
@@ -96,45 +105,47 @@ export default function PrivacyPage() {
           recoverable, including uploaded files. If you want a copy, export
           first.
         </p>
-      </Section>
+      </>
+    ),
+  },
+  {
+    id: "how-long-we-keep-it",
+    title: "How long we keep it",
+    body: (
+      <p>
+        For as long as your account exists. Delete the account and it goes; we
+        do not keep a shadow copy.
+      </p>
+    ),
+  },
+  {
+    id: "cookies",
+    title: "Cookies",
+    body: (
+      <p>
+        A session cookie to keep you logged in. No advertising cookies and no
+        third-party trackers.
+      </p>
+    ),
+  },
+  {
+    id: "contact",
+    title: "Contact",
+    body: (
+      <p>
+        Questions about your data, or a request to access or delete it: get in
+        touch through the app.
+      </p>
+    ),
+  },
+];
 
-      <Section title="How long we keep it">
-        <p>
-          For as long as your account exists. Delete the account and it goes;
-          we do not keep a shadow copy.
-        </p>
-      </Section>
-
-      <Section title="Cookies">
-        <p>
-          A session cookie to keep you logged in. No advertising cookies and no
-          third-party trackers.
-        </p>
-      </Section>
-
-      <Section title="Contact">
-        <p>
-          Questions about your data, or a request to access or delete it: get in
-          touch through the app.
-        </p>
-      </Section>
-    </article>
-  );
-}
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+export default function PrivacyPage() {
   return (
-    <section className="mt-8">
-      <h2 className="text-lg font-semibold">{title}</h2>
-      <div className="text-muted-foreground mt-2 grid gap-3 leading-relaxed">
-        {children}
-      </div>
-    </section>
+    <LegalPage
+      title="Privacy Policy"
+      updated="3 September 2026"
+      sections={SECTIONS}
+    />
   );
 }

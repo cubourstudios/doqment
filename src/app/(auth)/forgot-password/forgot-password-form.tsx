@@ -10,6 +10,7 @@ import {
   requestPasswordReset,
   type AuthActionState,
 } from "@/app/(auth)/actions";
+import { AuthError } from "@/app/(auth)/auth-error";
 
 export function ForgotPasswordForm() {
   const [state, formAction] = useActionState<AuthActionState, FormData>(
@@ -19,13 +20,13 @@ export function ForgotPasswordForm() {
 
   if (state.emailSent) {
     return (
-      <div className="grid gap-3 text-center">
-        <MailCheckIcon className="text-muted-foreground mx-auto size-8" />
-        <p className="font-medium">Check your email</p>
+      <div className="bg-muted/40 grid gap-3 rounded-lg border border-dashed px-6 py-8 text-center">
+        <MailCheckIcon className="text-primary mx-auto size-8" />
+        <p className="text-lg font-semibold tracking-tight">Check your email</p>
         {/* Deliberately non-committal about whether the address exists — the
             same wording either way keeps this from confirming who has an
             account. */}
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-base text-pretty">
           If that address has an account, a reset link is on its way.
         </p>
       </div>
@@ -33,9 +34,11 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} className="grid gap-5">
       <div className="grid gap-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email" className="min-h-11 text-base">
+          Email
+        </Label>
         <Input
           id="email"
           name="email"
@@ -43,15 +46,12 @@ export function ForgotPasswordForm() {
           autoComplete="email"
           inputMode="email"
           autoCapitalize="none"
+          className="md:text-base"
           required
         />
       </div>
 
-      {state.error ? (
-        <p role="alert" className="text-destructive text-sm">
-          {state.error}
-        </p>
-      ) : null}
+      {state.error ? <AuthError>{state.error}</AuthError> : null}
 
       <SubmitButton pendingLabel="Sending…">Send reset link</SubmitButton>
     </form>

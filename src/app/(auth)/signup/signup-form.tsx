@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { signup, type AuthActionState } from "@/app/(auth)/actions";
+import { AuthError } from "@/app/(auth)/auth-error";
 
 export function SignupForm() {
   const [state, formAction] = useActionState<AuthActionState, FormData>(
@@ -18,10 +19,10 @@ export function SignupForm() {
   // Say plainly what to do next; a silent success looks like a broken form.
   if (state.emailSent) {
     return (
-      <div className="grid gap-3 text-center">
-        <MailCheckIcon className="text-muted-foreground mx-auto size-8" />
-        <p className="font-medium">Check your email</p>
-        <p className="text-muted-foreground text-sm">
+      <div className="bg-muted/40 grid gap-3 rounded-lg border border-dashed px-6 py-8 text-center">
+        <MailCheckIcon className="text-primary mx-auto size-8" />
+        <p className="text-lg font-semibold tracking-tight">Check your email</p>
+        <p className="text-muted-foreground text-base text-pretty">
           We&apos;ve sent you a confirmation link. Open it on this device and
           you&apos;ll be signed straight in.
         </p>
@@ -30,20 +31,25 @@ export function SignupForm() {
   }
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} className="grid gap-5">
       <div className="grid gap-2">
-        <Label htmlFor="name">Your name</Label>
+        <Label htmlFor="name" className="min-h-11 text-base">
+          Your name
+        </Label>
         <Input
           id="name"
           name="name"
           autoComplete="name"
           autoCapitalize="words"
+          className="md:text-base"
           required
         />
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email" className="min-h-11 text-base">
+          Email
+        </Label>
         <Input
           id="email"
           name="email"
@@ -51,28 +57,31 @@ export function SignupForm() {
           autoComplete="email"
           inputMode="email"
           autoCapitalize="none"
+          className="md:text-base"
           required
         />
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password" className="min-h-11 text-base">
+          Password
+        </Label>
         <Input
           id="password"
           name="password"
           type="password"
           autoComplete="new-password"
           minLength={8}
+          aria-describedby="password-hint"
+          className="md:text-base"
           required
         />
-        <p className="text-muted-foreground text-sm">At least 8 characters.</p>
+        <p id="password-hint" className="text-muted-foreground text-base">
+          At least 8 characters.
+        </p>
       </div>
 
-      {state.error ? (
-        <p role="alert" className="text-destructive text-sm">
-          {state.error}
-        </p>
-      ) : null}
+      {state.error ? <AuthError>{state.error}</AuthError> : null}
 
       <SubmitButton pendingLabel="Creating account…">
         Create account
