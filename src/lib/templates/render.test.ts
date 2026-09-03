@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { templatesSeed } from "@/db/seed-data/templates";
 import {
   buildPrefill,
+  formatCurrencyValues,
   missingRequired,
   readPath,
   renderBody,
@@ -389,5 +390,40 @@ describe("seeded templates", () => {
 
   it("covers all six document types in all three regions", () => {
     expect(templatesSeed).toHaveLength(18);
+  });
+});
+
+describe("formatCurrencyValues", () => {
+  const schema = {
+    fields: [
+      { name: "fee", label: "Fee", type: "currency" as const, required: true },
+      { name: "note", label: "Note", type: "text" as const },
+    ],
+  };
+
+  /**
+   * A contract that says "The Client will pay 250000" names no currency, which
+   * is the one thing a fee clause cannot be vague about.
+   */
+  it("formats a field the schema declares as currency", () => {
+    const out = formatCurrencyValues(schema, { fee: "250000", note: "250000" }, "INR");
+
+    expect(out.fee).toBe("₹2,50,000.00");
+    // Only currency-typed fields; an identical string elsewhere is left alone.
+    expect(out.note).toBe("250000");
+  });
+
+  it("uses the currency it is given", () => {
+    expect(formatCurrencyValues(schema, { fee: "1200.5" }, "USD").fee).toBe("$1,200.50");
+  });
+
+  it("leaves an unparseable fee exactly as typed", () => {
+    // "250000 plus expenses" is worth keeping verbatim in a contract.
+    const out = formatCurrencyValues(schema, { fee: "250000 plus expenses" }, "INR");
+    expect(out.fee).toBe("250000 plus expenses");
+  });
+
+  it("leaves an empty fee empty", () => {
+    expect(formatCurrencyValues(schema, { fee: "" }, "INR").fee).toBe("");
   });
 });

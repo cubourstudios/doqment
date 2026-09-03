@@ -60,6 +60,29 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/*
+         * Google Sans, served from Google's API rather than self-hosted.
+         * next/font cannot fetch it — this Next version's Google font manifest
+         * predates it — and the file is Google's proprietary brand font rather
+         * than an OFL release like the Noto used for PDFs, so vendoring the
+         * binaries into the repo is not ours to do.
+         *
+         * Geist stays loaded as the fallback in --font-sans: it is self-hosted
+         * by next/font, so a blocked or slow CDN degrades to a real typeface
+         * instead of to Times New Roman.
+         */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font --
+            the rule is about pages/_document.js in the Pages Router. This is
+            the App Router root layout, so the stylesheet is on every page,
+            which is exactly what the rule asks for. */}
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght,GRAD@0,17..18,400..700,-50..200;1,17..18,400..700,-50..200&display=swap"
+        />
+      </head>
       <body className="flex min-h-full flex-col">
         <ThemeProvider>
           {children}

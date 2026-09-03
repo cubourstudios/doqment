@@ -1,3 +1,5 @@
+import { formatMinor, parseAmount } from "@/lib/invoice/money";
+
 import type {
   TemplateBody,
   TemplateField,
@@ -169,6 +171,40 @@ export function resolveTags(
 
     return "";
   });
+}
+
+/**
+ * Format the values the schema declares as money.
+ *
+ * A `type: "currency"` field arrives from the form as a bare number, so a
+ * service agreement read "The Client will pay 250000" — a fee clause naming no
+ * currency, which is the one thing it cannot be vague about. The field type
+ * already carries the intent; this is where it is honoured.
+ *
+ * Anything that does not parse as an amount is left exactly as typed. A fee
+ * recorded as "250000 plus expenses" is worth keeping verbatim in a contract;
+ * blanking it would be worse than not formatting it.
+ */
+export function formatCurrencyValues(
+  schema: TemplateSchema,
+  values: FieldValues,
+  currency: string,
+): FieldValues {
+  const formatted: FieldValues = { ...values };
+
+  for (const field of schema.fields) {
+    if (field.type !== "currency") continue;
+
+    const value = formatted[field.name];
+    if (typeof value !== "string" || value.trim() === "") continue;
+
+    const minor = parseAmount(value, currency);
+    if (minor === null) continue;
+
+    formatted[field.name] = formatMinor(minor, currency);
+  }
+
+  return formatted;
 }
 
 export type RenderedBlock = {

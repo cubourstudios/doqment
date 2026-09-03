@@ -21,6 +21,7 @@ import type { DocType } from "@/lib/guidance/types";
 import { getCountryConfig } from "@/lib/regions";
 import { LIMITS, rateLimit } from "@/lib/rate-limit";
 import {
+  formatCurrencyValues,
   missingRequired,
   renderBody,
   type FieldValues,
@@ -139,7 +140,12 @@ export async function createTemplateDocument(
     },
   };
 
-  const blocks = renderBody(body, values, context);
+  const country = getCountryConfig(profile.country);
+  const blocks = renderBody(
+    body,
+    formatCurrencyValues(schema, values, profile.currency ?? country.currency),
+    context,
+  );
 
   const title = `${template.name} — ${client?.name ?? project.title}`;
 

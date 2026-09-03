@@ -143,7 +143,11 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --font-sans: var(--font-geist-sans);
+  /* Google Sans first, Geist behind it. Geist is self-hosted by next/font, so
+     it is what renders if the Google Fonts request is slow or blocked — the
+     fallback is a real typeface rather than the browser default. */
+  --font-sans: "Google Sans", var(--font-geist-sans), ui-sans-serif, system-ui,
+    sans-serif;
   --font-mono: var(--font-geist-mono);
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -163,6 +167,12 @@
        reads as a layout bug. Keeping the base at 16px avoids it entirely. */
     font-size: 16px;
     -webkit-tap-highlight-color: transparent;
+    /* Google Sans is a variable font with an optical size and a GRAD axis.
+       Optical sizing auto lets it adjust between body copy and headings; GRAD 0
+       is its normal weight-on-the-page, adjusted rather than faked by the
+       browser. Both are inert when the fallback renders. */
+    font-optical-sizing: auto;
+    font-variation-settings: "GRAD" 0;
   }
 
   /* Respect the iOS home indicator and notch. The app is mobile-first, so this
