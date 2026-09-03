@@ -3,7 +3,12 @@ import Link from "next/link";
 import { FolderPlusIcon, PlusIcon } from "lucide-react";
 
 import { requireProfile } from "@/lib/auth";
-import { getDashboardData, markOverdueInvoices } from "@/lib/dashboard";
+import {
+  getDashboardData,
+  getMonthlyTotals,
+  markOverdueInvoices,
+} from "@/lib/dashboard";
+import { RevenueChart } from "@/components/app/revenue-chart";
 import { formatDecimal, formatMinor } from "@/lib/invoice/money";
 import { INVOICE_STATUS_LABELS } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +26,12 @@ export default async function DashboardPage() {
   // before reading the figures that depend on it.
   await markOverdueInvoices(userId);
 
-  const data = await getDashboardData(userId, currency);
+  // Both reads hit the same tables; running them together rather than in
+  // sequence keeps the dashboard to one round trip's worth of waiting.
+  const [data, monthly] = await Promise.all([
+    getDashboardData(userId, currency),
+    getMonthlyTotals(userId, currency),
+  ]);
   const firstName = profile.name?.split(" ")[0];
 
   const nothingYet =
@@ -48,8 +58,16 @@ export default async function DashboardPage() {
         </div>
       ) : (
         <>
-          {/* Money owed leads, because it is the thing a freelancer opens this
-              app to find out. */}
+          {/*
+            Money owed leads, because it is the thing a freelancer opens this
+            app to find out.
+
+            Outstanding gets its own full-width tile and the other two share a
+            row beneath it. Three equal stacked cards cost two and a half
+            screens of scrolling on a phone before anything else was reachable,
+            which buried the invoice list under the numbers nobody opened the
+            app for.
+          */}
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
             <Stat
               label="Outstanding"
@@ -60,21 +78,30 @@ export default async function DashboardPage() {
               )}
               emphasis
             />
-            <Stat
-              label="Overdue"
-              value={formatMinor(data.overdue.amount, currency)}
-              detail={invoiceCountDetail(
-                data.overdue.count,
-                data.overdue.otherCurrencyCount,
-              )}
-              alert={data.overdue.count > 0}
-            />
-            <Stat
-              label="Paid"
-              value={formatMinor(data.paidThisYear, currency)}
-              detail="Received to date"
-            />
+            <div className="grid grid-cols-2 gap-3 sm:contents">
+              <Stat
+                label="Overdue"
+                value={formatMinor(data.overdue.amount, currency)}
+                detail={invoiceCountDetail(
+                  data.overdue.count,
+                  data.overdue.otherCurrencyCount,
+                )}
+                alert={data.overdue.count > 0}
+              />
+              <Stat
+                label="Paid"
+                value={formatMinor(data.paidThisYear, currency)}
+                detail="Received to date"
+              />
+            </div>
           </div>
+
+          <Card className="mt-4">
+            <CardContent className="px-4">
+              <h2 className="mb-1 text-sm font-medium">Last six months</h2>
+              <RevenueChart data={monthly} currency={currency} />
+            </CardContent>
+          </Card>
 
           <div className="mt-6 flex flex-col gap-2 sm:flex-row">
             <Button asChild className="w-full sm:w-auto">
@@ -160,17 +187,19 @@ function Stat({
   alert?: boolean;
 }) {
   return (
-    <Card>
+    // py-4 rather than the card default: a tile holding one number does not
+    // need the vertical room of a content card, and three of them did.
+    <Card className="gap-0 py-4">
       <CardContent className="px-4">
-        <p className="text-muted-foreground text-sm">{label}</p>
+        <p className="text-muted-foreground text-xs sm:text-sm">{label}</p>
         <p
-          className={`mt-1 font-semibold tabular-nums ${
-            emphasis ? "text-2xl" : "text-xl"
+          className={`mt-0.5 font-semibold tracking-tight tabular-nums ${
+            emphasis ? "text-2xl" : "text-lg sm:text-xl"
           } ${alert ? "text-destructive" : ""}`}
         >
           {value}
         </p>
-        <p className="text-muted-foreground mt-1 text-xs">{detail}</p>
+        <p className="text-muted-foreground mt-0.5 text-xs">{detail}</p>
       </CardContent>
     </Card>
   );

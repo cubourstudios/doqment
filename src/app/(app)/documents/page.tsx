@@ -103,7 +103,11 @@ export default async function DocumentsPage({
       ) : (
         <ul className="mt-4 grid gap-2">
           {filtered.map((row) => (
-            <li key={row.id}>
+            // min-w-0: a grid item's automatic minimum is its content width, so
+            // without this the row is sized by the untruncated title, `truncate`
+            // never engages, and a long document name scrolled the whole page
+            // sideways on a phone.
+            <li key={row.id} className="min-w-0">
               <Link
                 href={`/documents/${row.id}`}
                 className="hover:bg-accent flex min-h-16 items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors"

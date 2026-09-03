@@ -1,8 +1,8 @@
-import { and, count, desc, eq, isNull, lt, ne } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, lt, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import { clients, documents, invoices, projects } from "@/db/schema";
-import { fromDecimalString } from "@/lib/invoice/money";
+import { fromDecimalString, minorUnitDigits } from "@/lib/invoice/money";
 
 /**
  * Dashboard figures.
@@ -65,6 +65,98 @@ function countTotals(
   const included = rows.filter((row) => row.currency === currency).length;
 
   return { count: included, otherCurrencyCount: rows.length - included };
+}
+
+/** One bar on the dashboard chart. */
+export type MonthlyTotals = {
+  /** "2026-09", for React keys and ordering. */
+  month: string;
+  /** Axis label: "Sep". */
+  label: string;
+  /**
+   * Major units as plain numbers, not minor-unit bigints.
+   *
+   * Everything else in this file keeps money in integer minor units for exactly
+   * the reasons src/lib/invoice/money.ts sets out. A chart is the one place
+   * that cannot: it is drawn in a client component, bigint does not cross the
+   * serialisation boundary, and a bar's pixel height is approximate anyway.
+   * These are for drawing only — never write them back.
+   */
+  invoiced: number;
+  paid: number;
+};
+
+/** The last `months` calendar months, oldest first, including the current one. */
+function recentMonths(months: number): { month: string; label: string }[] {
+  const now = new Date();
+  const out: { month: string; label: string }[] = [];
+
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    out.push({
+      month: `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`,
+      label: d.toLocaleDateString("en", { month: "short", timeZone: "UTC" }),
+    });
+  }
+
+  return out;
+}
+
+/**
+ * Invoiced against actually received, by month.
+ *
+ * The three figures above the chart answer "where do I stand today". This
+ * answers the question a freelancer asks next and cannot get from a total:
+ * whether the work is trending up, and how far behind the money runs from the
+ * invoicing. The gap between the two bars is the whole point of the chart.
+ */
+export async function getMonthlyTotals(
+  userId: string,
+  currency: string,
+  months = 6,
+): Promise<MonthlyTotals[]> {
+  const buckets = recentMonths(months);
+  const earliest = `${buckets[0].month}-01`;
+
+  const rows = await db
+    .select({
+      issueDate: invoices.issueDate,
+      total: invoices.total,
+      currency: invoices.currency,
+      status: invoices.status,
+    })
+    .from(invoices)
+    .leftJoin(documents, eq(invoices.documentId, documents.id))
+    .where(
+      and(
+        eq(invoices.userId, userId),
+        isNull(documents.deletedAt),
+        gte(invoices.issueDate, earliest),
+      ),
+    );
+
+  const byMonth = new Map(
+    buckets.map((b) => [b.month, { ...b, invoiced: 0, paid: 0 }]),
+  );
+
+  // Not a hardcoded 100: JPY and the other zero-decimal currencies would come
+  // out a hundred times too tall.
+  const perMajorUnit = 10 ** minorUnitDigits(currency);
+
+  for (const row of rows) {
+    // Mixed currencies are excluded rather than added together, the same way
+    // the figures above the chart are.
+    if (row.currency !== currency || !row.issueDate) continue;
+
+    const bucket = byMonth.get(row.issueDate.slice(0, 7));
+    if (!bucket) continue;
+
+    const amount = Number(fromDecimalString(row.total, currency)) / perMajorUnit;
+    bucket.invoiced += amount;
+    if (row.status === "paid") bucket.paid += amount;
+  }
+
+  return [...byMonth.values()];
 }
 
 export async function getDashboardData(
