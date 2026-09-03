@@ -44,10 +44,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b1220" },
-  ],
+  // One colour, because the app is pinned to its light theme (see
+  // components/theme-provider.tsx). Handing the browser a dark chrome colour
+  // on a dark-mode device would frame a white page in near-black.
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
