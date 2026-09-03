@@ -28,7 +28,10 @@
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
+  /* Brand blue #0140ff, converted rather than eyeballed. White on it measures
+     6.61:1, which clears WCAG AA for body text, so primary buttons can carry
+     ordinary label sizes rather than being restricted to large text. */
+  --primary: oklch(0.501 0.28 263.873);
   --primary-foreground: oklch(0.984 0.003 247.858);
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: oklch(0.208 0.042 265.755);
@@ -40,7 +43,9 @@
   --destructive-foreground: oklch(0.984 0.003 247.858);
   --border: oklch(0.929 0.013 255.508);
   --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  /* The focus ring carries the brand: a saturated ring is easier to see than
+     the old grey-blue, and focus is the one state that must never be subtle. */
+  --ring: oklch(0.501 0.28 263.873);
 
   /* Document-priority accents. These carry meaning in the checklist — the
      whole product is about telling someone what is essential versus optional —
@@ -60,7 +65,7 @@
 
   --sidebar: oklch(0.984 0.003 247.858);
   --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary: oklch(0.501 0.28 263.873);
   --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
   --sidebar-accent: oklch(0.968 0.007 247.896);
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
@@ -143,10 +148,10 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* Google Sans first, Geist behind it. Geist is self-hosted by next/font, so
-     it is what renders if the Google Fonts request is slow or blocked — the
-     fallback is a real typeface rather than the browser default. */
-  --font-sans: "Google Sans", var(--font-geist-sans), ui-sans-serif, system-ui,
+  /* Afacad first, Geist behind it. Geist is self-hosted by next/font, so it is
+     what renders if the Google Fonts request is slow or blocked — the fallback
+     is a real typeface rather than the browser default. */
+  --font-sans: "Afacad", var(--font-geist-sans), ui-sans-serif, system-ui,
     sans-serif;
   --font-mono: var(--font-geist-mono);
 
@@ -167,12 +172,9 @@
        reads as a layout bug. Keeping the base at 16px avoids it entirely. */
     font-size: 16px;
     -webkit-tap-highlight-color: transparent;
-    /* Google Sans is a variable font with an optical size and a GRAD axis.
-       Optical sizing auto lets it adjust between body copy and headings; GRAD 0
-       is its normal weight-on-the-page, adjusted rather than faked by the
-       browser. Both are inert when the fallback renders. */
+    /* Afacad is a variable font with a weight axis and optical sizing; it has
+       no GRAD axis, so none is set. Inert when the fallback renders. */
     font-optical-sizing: auto;
-    font-variation-settings: "GRAD" 0;
   }
 
   /* Respect the iOS home indicator and notch. The app is mobile-first, so this

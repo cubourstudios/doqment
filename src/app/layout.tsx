@@ -62,11 +62,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <head>
         {/*
-         * Google Sans, served from Google's API rather than self-hosted.
-         * next/font cannot fetch it — this Next version's Google font manifest
-         * predates it — and the file is Google's proprietary brand font rather
-         * than an OFL release like the Noto used for PDFs, so vendoring the
-         * binaries into the repo is not ours to do.
+         * Afacad, served from Google's API. next/font cannot fetch it — this
+         * Next version's Google font manifest predates it — so it is linked
+         * rather than self-hosted. Afacad is OFL, so self-hosting it is an
+         * option later if the extra request is worth removing.
          *
          * Geist stays loaded as the fallback in --font-sans: it is self-hosted
          * by next/font, so a blocked or slow CDN degrades to a real typeface
@@ -80,7 +79,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             which is exactly what the rule asks for. */}
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght,GRAD@0,17..18,400..700,-50..200;1,17..18,400..700,-50..200&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Afacad:ital,wght@0,400..700;1,400..700&display=swap"
         />
       </head>
       <body className="flex min-h-full flex-col">

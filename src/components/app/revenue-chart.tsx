@@ -22,12 +22,13 @@ import type { MonthlyTotals } from "@/lib/dashboard";
  * they sit side by side rather than stacked — a stacked bar would make the
  * paid portion look like part of a whole rather than a race against it.
  *
- * The two hues are validated for colour-vision deficiency (deutan ΔE 22.1,
- * normal-vision ΔE 27.1) rather than picked by eye, and both are also
- * distinguished by position and by the legend, so identity never rests on
- * colour alone.
+ * Invoiced carries the brand blue, so the loudest mark on the dashboard is the
+ * product's own colour. The pair is validated for colour-vision deficiency
+ * (protan ΔE 25.2, normal-vision ΔE 29.7) rather than picked by eye, and both
+ * series are also distinguished by position and by the legend, so identity
+ * never rests on colour alone.
  */
-const INVOICED = "#4f46e5";
+const INVOICED = "#0140ff";
 const PAID = "#0d9488";
 
 function money(value: number, currency: string): string {
