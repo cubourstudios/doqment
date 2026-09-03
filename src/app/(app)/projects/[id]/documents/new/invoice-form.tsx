@@ -54,31 +54,64 @@ function addDays(isoDate: string, days: number): string {
 
 const TODAY = () => new Date().toISOString().slice(0, 10);
 
-let nextLineId = 1;
+// Shared counter for lines added after the first render. Seeded past any
+// initial rows so an edited invoice cannot hand two lines the same key.
+let nextLineId = 1000;
 
+export type InvoiceFormInitial = {
+  issueDate: string;
+  dueDate: string;
+  discount: string;
+  notes: string;
+  taxRateBasisPoints: number;
+  lineItems: { description: string; quantity: string; unitPrice: string }[];
+};
+
+/**
+ * Serves both creating and editing an invoice.
+ *
+ * One component rather than two: the moment either gained a field the other
+ * would quietly lack it, and a create/edit pair that disagree about what an
+ * invoice contains is how a corrected invoice loses a line.
+ */
 export function InvoiceForm({
   action,
   context,
+  initial,
+  submitLabel = "Create invoice",
+  pendingLabel = "Creating…",
 }: {
   action: (state: DocumentState, formData: FormData) => Promise<DocumentState>;
   context: InvoiceFormContext;
+  initial?: InvoiceFormInitial;
+  submitLabel?: string;
+  pendingLabel?: string;
 }) {
   const [state, formAction] = useActionState<DocumentState, FormData>(action, {});
 
-  const [lines, setLines] = useState<Line[]>([
-    {
-      id: 0,
-      description: context.defaultDescription,
-      quantity: "1",
-      unitPrice: "",
-    },
-  ]);
-  const [issueDate, setIssueDate] = useState(TODAY);
-  // Net 30 by default: the most common term, and it guarantees the invoice can
-  // actually become overdue rather than sitting outside the tracking entirely.
-  const [dueDate, setDueDate] = useState(() => addDays(TODAY(), 30));
-  const [discount, setDiscount] = useState("");
-  const [rate, setRate] = useState(context.registered ? 1800 : 0);
+  const [lines, setLines] = useState<Line[]>(() =>
+    initial
+      ? initial.lineItems.map((item, index) => ({ id: index, ...item }))
+      : [
+          {
+            id: 0,
+            description: context.defaultDescription,
+            quantity: "1",
+            unitPrice: "",
+          },
+        ],
+  );
+  const [issueDate, setIssueDate] = useState(initial?.issueDate ?? TODAY);
+  // Net 30 by default when creating: the most common term, and it guarantees
+  // the invoice can actually become overdue rather than sitting outside the
+  // tracking entirely. An edit keeps whatever was already chosen.
+  const [dueDate, setDueDate] = useState(
+    () => initial?.dueDate ?? addDays(TODAY(), 30),
+  );
+  const [discount, setDiscount] = useState(initial?.discount ?? "");
+  const [rate, setRate] = useState(
+    initial?.taxRateBasisPoints ?? (context.registered ? 1800 : 0),
+  );
 
   /**
    * A live preview only. The server recomputes all of this from the same raw
@@ -322,9 +355,11 @@ export function InvoiceForm({
 
       <div className="grid gap-2">
         <p className="text-muted-foreground text-sm">
-          This invoice will be numbered {context.nextInvoiceNumber}.
+          {initial
+            ? `Keeps its number, ${context.nextInvoiceNumber}.`
+            : `This invoice will be numbered ${context.nextInvoiceNumber}.`}
         </p>
-        <SubmitButton pendingLabel="Creating…">Create invoice</SubmitButton>
+        <SubmitButton pendingLabel={pendingLabel}>{submitLabel}</SubmitButton>
       </div>
     </form>
   );

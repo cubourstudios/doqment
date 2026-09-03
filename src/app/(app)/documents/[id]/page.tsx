@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
-import { ChevronLeftIcon } from "lucide-react";
+import { ChevronLeftIcon, PencilIcon } from "lucide-react";
 
 import { db } from "@/db";
 import { documents, documentVersions, invoices, projects } from "@/db/schema";
@@ -11,6 +11,7 @@ import { getUserPlan, limitsFor } from "@/lib/billing/plans";
 import { formatDecimal } from "@/lib/invoice/money";
 import { DOC_TYPE_LABELS, INVOICE_STATUS_LABELS } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { InvoicePdfData } from "@/components/pdf/invoice-document";
 import type { ContractPdfData } from "@/components/pdf/contract-document";
 import type { PreviewDocument } from "@/components/pdf/invoice-preview";
@@ -98,19 +99,34 @@ export default async function DocumentPage({
           </p>
         </div>
 
-        {invoice ? (
-          <Badge
-            variant={
-              invoice.status === "paid"
-                ? "success"
-                : invoice.status === "overdue"
-                  ? "destructive"
-                  : "secondary"
-            }
-          >
-            {INVOICE_STATUS_LABELS[invoice.status]}
-          </Badge>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Editing is offered only while the invoice is a draft. Once sent,
+              the client holds the original and the accounting answer is a
+              credit note, not a quiet rewrite — so the affordance disappears
+              rather than leading to a form that would refuse to save. */}
+          {invoice?.status === "draft" ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/documents/${document.id}/edit`}>
+                <PencilIcon />
+                Edit
+              </Link>
+            </Button>
+          ) : null}
+
+          {invoice ? (
+            <Badge
+              variant={
+                invoice.status === "paid"
+                  ? "success"
+                  : invoice.status === "overdue"
+                    ? "destructive"
+                    : "secondary"
+              }
+            >
+              {INVOICE_STATUS_LABELS[invoice.status]}
+            </Badge>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-6">
