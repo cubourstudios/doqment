@@ -6,7 +6,8 @@ import { ChevronLeftIcon, PencilIcon } from "lucide-react";
 
 import { db } from "@/db";
 import { documents, documentVersions, invoices, projects } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireProfile } from "@/lib/auth";
+import { createSignedUrl } from "@/lib/storage";
 import { getUserPlan, limitsFor } from "@/lib/billing/plans";
 import { formatDecimal } from "@/lib/invoice/money";
 import { DOC_TYPE_LABELS, INVOICE_STATUS_LABELS } from "@/lib/labels";
@@ -27,7 +28,7 @@ export default async function DocumentPage({
   params,
 }: PageProps<"/documents/[id]">) {
   const { id } = await params;
-  const user = await requireUser();
+  const { userId, profile } = await requireProfile();
 
   const [row] = await db
     .select({
@@ -46,7 +47,7 @@ export default async function DocumentPage({
     .where(
       and(
         eq(documents.id, id),
-        eq(documents.userId, user.id),
+        eq(documents.userId, userId),
         // Soft-deleted documents are gone as far as the UI is concerned; the
         // row survives only so its invoice number is never reissued.
         isNull(documents.deletedAt),
@@ -58,7 +59,14 @@ export default async function DocumentPage({
 
   const { document, version, invoice } = row;
 
-  const plan = await getUserPlan(user.id);
+  const plan = await getUserPlan(userId);
+
+  // Minted fresh per render. The logo sits in a private bucket behind an
+  // expiring URL, so storing one in the version snapshot would leave a dead
+  // link on any invoice reprinted later.
+  const logoUrl = profile.logoPath
+    ? await createSignedUrl("logos", profile.logoPath)
+    : null;
 
   /*
    * Which renderer to use is decided by the stored version, not by the
@@ -135,6 +143,7 @@ export default async function DocumentPage({
           document={preview}
           fileName={`${document.title.replace(/\//g, "-")}.pdf`}
           watermark={limitsFor(plan).watermark}
+          logoUrl={logoUrl}
         />
       </div>
 

@@ -28,10 +28,12 @@ export function InvoicePreview({
   document,
   fileName,
   watermark = false,
+  logoUrl,
 }: {
   document: PreviewDocument;
   fileName: string;
   watermark?: boolean;
+  logoUrl?: string | null;
 }) {
   const [showPreview, setShowPreview] = useState(false);
 
@@ -39,7 +41,11 @@ export function InvoicePreview({
   // so the two can never disagree about what is being produced.
   const element =
     document.kind === "invoice" ? (
-      <InvoiceDocument data={document.data} watermark={watermark} />
+      <InvoiceDocument
+        data={document.data}
+        watermark={watermark}
+        logoUrl={logoUrl}
+      />
     ) : (
       <ContractDocument data={document.data} watermark={watermark} />
     );

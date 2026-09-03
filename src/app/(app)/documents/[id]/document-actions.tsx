@@ -22,16 +22,19 @@ export function DocumentActions({
   document,
   fileName,
   watermark,
+  logoUrl,
 }: {
   document: PreviewDocument;
   fileName: string;
   watermark: boolean;
+  logoUrl?: string | null;
 }) {
   return (
     <InvoicePreview
       document={document}
       fileName={fileName}
       watermark={watermark}
+      logoUrl={logoUrl}
     />
   );
 }

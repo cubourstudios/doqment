@@ -2,6 +2,7 @@
 
 import {
   Document,
+  Image,
   Page,
   StyleSheet,
   Text,
@@ -68,6 +69,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 28,
   },
+  logo: { maxHeight: 44, maxWidth: 150, marginBottom: 8, objectFit: "contain" },
   title: { fontSize: 22, fontWeight: 700 },
   invoiceNumber: { fontSize: 10, color: "#475569", marginTop: 2 },
   parties: { flexDirection: "row", gap: 32, marginBottom: 24 },
@@ -152,9 +154,17 @@ function money(amount: string, currency: string): string {
 export function InvoiceDocument({
   data,
   watermark = false,
+  logoUrl,
 }: {
   data: InvoicePdfData;
   watermark?: boolean;
+  /**
+   * Passed in rather than read from the snapshot: the logo lives in a private
+   * bucket behind a URL that expires, so a link stored in data_json would be
+   * dead by the time anyone reprinted the invoice. The path is the stable
+   * reference; the URL is minted per render.
+   */
+  logoUrl?: string | null;
 }) {
   const supplierAddress = formatAddress(data.supplier.address);
   const clientAddress = formatAddress(data.client?.address);
@@ -169,6 +179,10 @@ export function InvoiceDocument({
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View>
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image
+                takes no alt; a PDF has no alternative-text channel here. */}
+            {logoUrl ? <Image style={styles.logo} src={logoUrl} /> : null}
+
             {/* "Tax Invoice" is the required heading under Indian GST rules
                 when tax is charged; a zero-rated export is just an invoice. */}
             <Text style={styles.title}>

@@ -12,6 +12,8 @@ import { requireProfile } from "@/lib/auth";
 import { getCountryConfig } from "@/lib/regions";
 
 import { ProfileForm } from "./profile-form";
+import { LogoForm } from "./logo-form";
+import { createSignedUrl } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { DeleteAccountButton } from "./delete-account-button";
 
@@ -19,6 +21,12 @@ export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const { profile, email } = await requireProfile();
+
+  // Minted per request and short-lived: the bucket is private, so a URL
+  // that outlived the page would be a standing handle on the file.
+  const logoUrl = profile.logoPath
+    ? await createSignedUrl("logos", profile.logoPath)
+    : null;
   const config = getCountryConfig(profile.country);
 
   return (
@@ -64,6 +72,18 @@ export default async function SettingsPage() {
                 : `Start of the financial year (month ${config.fiscalYearStartMonth})`}
             </span>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Logo</CardTitle>
+          <CardDescription>
+            Printed at the top of your invoices.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LogoForm signedUrl={logoUrl} />
         </CardContent>
       </Card>
 
