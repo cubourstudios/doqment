@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
-import { invoices } from "@/db/schema";
+import { documents, invoices } from "@/db/schema";
 import { invoiceStatusEnum } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { track } from "@/lib/analytics";
@@ -93,4 +94,60 @@ export async function markInvoiceSent(formData: FormData) {
   revalidatePath(`/documents/${documentId}`);
   revalidatePath("/documents");
   revalidatePath("/dashboard");
+}
+
+/**
+ * Delete a document.
+ *
+ * Soft, always. The schema has carried `deleted_at` from the start and six
+ * read paths already filter on it, but nothing ever set it — so a mistyped
+ * document was permanent clutter with no way to clear it.
+ *
+ * The row survives deliberately. An invoice number must never be reissued, and
+ * the counter only knows what it has handed out — reusing a number after a
+ * hard delete would produce two different invoices sharing one number, which
+ * is the failure the whole numbering design exists to prevent.
+ *
+ * A sent or paid invoice is not deletable. Removing the record of money a
+ * client actually owes or has paid is not tidying, and every tax regime
+ * expects the trail to survive. Cancelling is the right move there, which is
+ * what the status control is for.
+ */
+export async function deleteDocument(formData: FormData) {
+  const user = await requireUser();
+  const documentId = formData.get("documentId");
+
+  if (typeof documentId !== "string") return;
+
+  const [invoice] = await db
+    .select({ status: invoices.status })
+    .from(invoices)
+    .where(
+      and(eq(invoices.documentId, documentId), eq(invoices.userId, user.id)),
+    )
+    .limit(1);
+
+  // Only a draft invoice can go. A document that is not an invoice at all has
+  // no financial record to protect, so it is always removable.
+  if (invoice && invoice.status !== "draft") return;
+
+  const [removed] = await db
+    .update(documents)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(
+      and(
+        eq(documents.id, documentId),
+        eq(documents.userId, user.id),
+        isNull(documents.deletedAt),
+      ),
+    )
+    .returning({ projectId: documents.projectId });
+
+  if (!removed) return;
+
+  revalidatePath("/documents");
+  revalidatePath("/dashboard");
+  if (removed.projectId) revalidatePath(`/projects/${removed.projectId}`);
+
+  redirect(removed.projectId ? `/projects/${removed.projectId}` : "/documents");
 }

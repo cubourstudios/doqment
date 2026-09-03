@@ -19,6 +19,7 @@ import type { PreviewDocument } from "@/components/pdf/invoice-preview";
 import { DocumentActions } from "./document-actions";
 import { InvoiceStatusForm } from "./invoice-status-form";
 import { MarkSent } from "./mark-sent";
+import { DeleteDocumentButton } from "./delete-document-button";
 
 export const metadata: Metadata = { title: "Document" };
 
@@ -151,6 +152,19 @@ export default async function DocumentPage({
           <InvoiceStatusForm
             documentId={document.id}
             status={invoice.status}
+          />
+        </div>
+      ) : null}
+
+      {/* Offered only where it is actually permitted: a sent or paid invoice
+          is a financial record, and the action would silently do nothing. An
+          affordance that does nothing is worse than none. */}
+      {!invoice || invoice.status === "draft" ? (
+        <div className="mt-10">
+          <DeleteDocumentButton
+            documentId={document.id}
+            title={document.title}
+            isDraftInvoice={Boolean(invoice)}
           />
         </div>
       ) : null}
