@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { clients, documents, invoices, projects } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { markOverdueInvoices } from "@/lib/dashboard";
+import { formatDecimal } from "@/lib/invoice/money";
 import { DOC_TYPE_LABELS, INVOICE_STATUS_LABELS } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -119,9 +120,9 @@ export default async function DocumentsPage({
                 </span>
 
                 <span className="flex shrink-0 items-center gap-3">
-                  {row.total ? (
-                    <span className="tabular-nums">
-                      {row.currency} {row.total}
+                  {row.total && row.currency ? (
+                    <span className="font-medium tabular-nums">
+                      {formatDecimal(row.total, row.currency)}
                     </span>
                   ) : null}
                   {row.invoiceStatus ? (

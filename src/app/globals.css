@@ -44,13 +44,19 @@
 
   /* Document-priority accents. These carry meaning in the checklist — the
      whole product is about telling someone what is essential versus optional —
-     so they are tokens, not one-off classes. */
-  --essential: oklch(0.577 0.245 27.325);
+     so they are tokens, not one-off classes.
+
+     Essential is deliberately NOT red. Red already means "overdue" on invoices
+     and "destructive" on buttons, and a user seeing red beside "Service
+     Agreement" should not have to work out whether it is a priority or an
+     error. Priority reads as weight here — dark, then amber, then grey —
+     which leaves red meaning exactly one thing across the product. */
+  --essential: oklch(0.279 0.041 260.031);
   --essential-foreground: oklch(0.984 0.003 247.858);
-  --recommended: oklch(0.646 0.222 41.116);
-  --recommended-foreground: oklch(0.208 0.042 265.755);
-  --situational: oklch(0.554 0.046 257.417);
-  --situational-foreground: oklch(0.984 0.003 247.858);
+  --recommended: oklch(0.828 0.189 84.429);
+  --recommended-foreground: oklch(0.279 0.041 260.031);
+  --situational: oklch(0.968 0.007 247.896);
+  --situational-foreground: oklch(0.446 0.03 256.802);
 
   --sidebar: oklch(0.984 0.003 247.858);
   --sidebar-foreground: oklch(0.129 0.042 264.695);
@@ -83,12 +89,12 @@
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.551 0.027 264.364);
 
-  --essential: oklch(0.704 0.191 22.216);
-  --essential-foreground: oklch(0.984 0.003 247.858);
-  --recommended: oklch(0.75 0.18 55);
+  --essential: oklch(0.929 0.013 255.508);
+  --essential-foreground: oklch(0.208 0.042 265.755);
+  --recommended: oklch(0.828 0.189 84.429);
   --recommended-foreground: oklch(0.208 0.042 265.755);
-  --situational: oklch(0.551 0.027 264.364);
-  --situational-foreground: oklch(0.984 0.003 247.858);
+  --situational: oklch(0.279 0.041 260.031);
+  --situational-foreground: oklch(0.704 0.04 256.788);
 
   --sidebar: oklch(0.208 0.042 265.755);
   --sidebar-foreground: oklch(0.984 0.003 247.858);

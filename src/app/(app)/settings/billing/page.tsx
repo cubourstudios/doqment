@@ -153,11 +153,19 @@ function Usage({
     );
   }
 
+  const atLimit = used >= limit;
+
   return (
     <div className="grid gap-2">
       <div className="flex justify-between text-sm">
         <span>{label}</span>
-        <span className="text-muted-foreground tabular-nums">
+        <span
+          className={
+            atLimit
+              ? "font-medium tabular-nums"
+              : "text-muted-foreground tabular-nums"
+          }
+        >
           {used} of {limit}
         </span>
       </div>
@@ -165,6 +173,14 @@ function Usage({
         value={Math.min(100, (used / limit) * 100)}
         aria-label={`${used} of ${limit} ${label.toLowerCase()} used`}
       />
+      {/* A full bar and a nearly-full bar look almost identical at a glance,
+          so being blocked is stated in words rather than left to be inferred
+          from a few pixels. */}
+      {atLimit ? (
+        <p className="text-muted-foreground text-xs">
+          You&apos;ve used all of this month&apos;s {label.toLowerCase()}.
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { FolderPlusIcon, PlusIcon } from "lucide-react";
 
 import { requireProfile } from "@/lib/auth";
 import { getDashboardData, markOverdueInvoices } from "@/lib/dashboard";
-import { formatMinor } from "@/lib/invoice/money";
+import { formatDecimal, formatMinor } from "@/lib/invoice/money";
 import { INVOICE_STATUS_LABELS } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
             <Stat
               label="Paid"
               value={formatMinor(data.paidThisYear, currency)}
-              detail={`${data.activeProjects} active project${data.activeProjects === 1 ? "" : "s"}`}
+              detail="Received to date"
             />
           </div>
 
@@ -107,8 +107,8 @@ export default async function DashboardPage() {
                         </span>
                       </span>
                       <span className="flex shrink-0 items-center gap-3">
-                        <span className="tabular-nums">
-                          {invoice.currency} {invoice.total}
+                        <span className="font-medium tabular-nums">
+                          {formatDecimal(invoice.total, invoice.currency)}
                         </span>
                         <InvoiceBadge
                           status={

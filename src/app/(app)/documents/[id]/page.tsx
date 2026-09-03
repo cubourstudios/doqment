@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { documents, documentVersions, invoices, projects } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { getUserPlan, limitsFor } from "@/lib/billing/plans";
+import { formatDecimal } from "@/lib/invoice/money";
 import { DOC_TYPE_LABELS, INVOICE_STATUS_LABELS } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
 import type { InvoicePdfData } from "@/components/pdf/invoice-document";
@@ -91,7 +92,7 @@ export default async function DocumentPage({
           <p className="text-muted-foreground text-sm">
             {DOC_TYPE_LABELS[document.docType]}
             {invoice && invoiceData
-              ? ` · ${invoiceData.currency} ${invoiceData.total}`
+              ? ` · ${formatDecimal(invoiceData.total, invoiceData.currency)}`
               : ""}
           </p>
         </div>

@@ -127,6 +127,24 @@ export function applyRate(amount: bigint, rateBasisPoints: number): bigint {
   return roundHalfUp(amount * BigInt(rateBasisPoints), 10000n);
 }
 
+/**
+ * Format a decimal string straight from a `numeric` column.
+ *
+ * Exists because the obvious thing — printing `${currency} ${total}` — gives
+ * "INR 118000.00", which is what a database row looks like rather than what
+ * money looks like. Invoice amounts are the most repeated element in the
+ * product; getting them wrong reads as an unfinished tool, and an Indian user
+ * expects lakh grouping (2,36,000) rather than thousands.
+ */
+export function formatDecimal(value: string, currency: string): string {
+  try {
+    return formatMinor(fromDecimalString(value, currency), currency);
+  } catch {
+    // A malformed stored value should not blank out a whole page.
+    return `${currency} ${value}`;
+  }
+}
+
 /** Display formatting. Never used for storage or arithmetic. */
 export function formatMinor(minor: bigint, currency: string): string {
   const digits = minorUnitDigits(currency);
