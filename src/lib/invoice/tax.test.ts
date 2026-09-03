@@ -220,3 +220,32 @@ describe("tax breakdown serialisation", () => {
     expect(() => JSON.stringify(json)).not.toThrow();
   });
 });
+
+describe("an odd rate", () => {
+  /**
+   * India's 0.25% slab is 25 basis points, which has no whole-basis-point
+   * half. applyRate calls BigInt() on the rate, so an unfloored half threw a
+   * RangeError on save instead of producing an invoice.
+   */
+  it("splits into whole basis points that still sum to the full rate", () => {
+    const breakdown = computeTax({
+      ...base,
+      rateBasisPoints: 25,
+      taxableAmount: ONE_LAKH,
+    });
+
+    const [cgst, sgst] = breakdown.components;
+
+    expect(cgst.rateBasisPoints + sgst.rateBasisPoints).toBe(25);
+    expect(Number.isInteger(cgst.rateBasisPoints)).toBe(true);
+    expect(Number.isInteger(sgst.rateBasisPoints)).toBe(true);
+    expect(breakdown.total).toBe(cgst.amount + sgst.amount);
+  });
+
+  it("still halves an even rate evenly", () => {
+    const [cgst, sgst] = computeTax({ ...base, taxableAmount: ONE_LAKH }).components;
+
+    expect(cgst.rateBasisPoints).toBe(900);
+    expect(sgst.rateBasisPoints).toBe(900);
+  });
+});

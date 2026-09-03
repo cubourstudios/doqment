@@ -128,11 +128,17 @@ export function computeTax(input: TaxInput): TaxBreakdown {
   // that the supply is local. Each half is rounded independently, which is how
   // GST portals compute it; the two halves can therefore differ by one paisa
   // from a single IGST line at the full rate.
-  const half = rateBasisPoints / 2;
+  //
+  // The halves are split in whole basis points and the odd one goes to SGST.
+  // applyRate converts the rate with BigInt(), which throws on a fraction, so
+  // an odd rate — India's 0.25% slab is 25bp — would otherwise be a RangeError
+  // on save rather than an invoice.
+  const cgst = Math.floor(rateBasisPoints / 2);
+  const sgst = rateBasisPoints - cgst;
 
   return withTotal([
-    { label: "CGST", rateBasisPoints: half, amount: applyRate(taxableAmount, half) },
-    { label: "SGST", rateBasisPoints: half, amount: applyRate(taxableAmount, half) },
+    { label: "CGST", rateBasisPoints: cgst, amount: applyRate(taxableAmount, cgst) },
+    { label: "SGST", rateBasisPoints: sgst, amount: applyRate(taxableAmount, sgst) },
   ]);
 }
 
