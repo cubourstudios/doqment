@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, isNull, lt, ne } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, lt, ne, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import { clients, documents, invoices, projects } from "@/db/schema";
@@ -183,6 +183,10 @@ export async function getMonthlyTotals(
   // data, so nothing in range can be silently dropped.
   const now = new Date();
   const utcMonth = monthKey(now.getUTCFullYear(), now.getUTCMonth());
+  // One month past UTC is as far ahead as any real time zone can be. Anything
+  // beyond it is a post-dated or mistyped invoice, and must not be allowed to
+  // drag the window with it — see `newest` below.
+  const furthest = monthKey(now.getUTCFullYear(), now.getUTCMonth() + 1);
   const fetchFrom = `${monthKey(now.getUTCFullYear(), now.getUTCMonth() - months)}-01`;
 
   const rows = await db
@@ -199,20 +203,28 @@ export async function getMonthlyTotals(
       and(
         eq(invoices.userId, userId),
         isNull(documents.deletedAt),
-        gte(invoices.issueDate, fetchFrom),
+        // Either raised in the window or settled in it. Filtering on issue
+        // date alone hid exactly the case the chart is for: an invoice raised
+        // eight months ago and paid this month never reached the query, so
+        // this month's "received" bar was missing the money that arrived.
+        or(
+          gte(invoices.issueDate, fetchFrom),
+          gte(invoices.paidAt, new Date(fetchFrom)),
+        ),
       ),
     );
 
   // End the window at the newest month the user actually has data in, when
   // that is ahead of UTC — which is what stops an invoice dated "today" in a
   // zone ahead of the server falling outside every bucket.
-  const newest = rows.reduce(
-    (latest, row) =>
-      row.issueDate && row.issueDate.slice(0, 7) > latest
-        ? row.issueDate.slice(0, 7)
-        : latest,
-    utcMonth,
-  );
+  const newest = rows.reduce((latest, row) => {
+    const month = row.issueDate?.slice(0, 7);
+    // Capped: one invoice typed as 2062 would otherwise move the whole window
+    // to that year, leaving a card headed "last six months" showing six empty
+    // bars and hiding every real invoice, permanently.
+    if (!month || month > furthest) return latest;
+    return month > latest ? month : latest;
+  }, utcMonth);
 
   const byMonth = new Map(
     monthsEndingAt(newest, months).map((b) => [
