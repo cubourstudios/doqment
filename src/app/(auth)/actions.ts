@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
+import { LIMITS, rateLimit } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import {
   forgotPasswordSchema,
@@ -51,6 +52,27 @@ async function getAppUrl() {
 }
 
 /**
+ * Throttle by caller IP.
+ *
+ * Server actions have no Request to hand to clientKey(), so the forwarded
+ * header is read from the request scope instead. Signup and password reset
+ * both send mail on an anonymous caller's say-so, which is the spam vector
+ * LIMITS.auth exists for.
+ */
+async function limitByIp(scope: string) {
+  const headerList = await headers();
+  const ip = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+
+  return rateLimit(
+    `${scope}:${ip}`,
+    LIMITS.auth.limit,
+    LIMITS.auth.windowSeconds,
+  );
+}
+
+const TOO_MANY_ATTEMPTS = "Too many attempts just now. Try again in a few minutes.";
+
+/**
  * Login and signup failures are reported in general terms on purpose: telling
  * an anonymous caller whether an address is registered turns the login form
  * into an account-enumeration oracle.
@@ -70,6 +92,10 @@ export async function signup(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check your details." };
+  }
+
+  if (!(await limitByIp("signup")).allowed) {
+    return { error: TOO_MANY_ATTEMPTS };
   }
 
   const supabase = await createClient();
@@ -158,6 +184,12 @@ export async function requestPasswordReset(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check your email." };
+  }
+
+  // Reported as success below whether or not the address exists, so the
+  // throttle is what stops this being a free mail cannon at any address.
+  if (!(await limitByIp("password-reset")).allowed) {
+    return { emailSent: true };
   }
 
   const supabase = await createClient();
