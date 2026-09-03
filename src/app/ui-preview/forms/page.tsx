@@ -131,6 +131,7 @@ export default function FormPreviewPage() {
             registered: true,
             nextInvoiceNumber: "INV/FY2026-27/0004",
             defaultDescription: "Website redesign",
+            defaultNotes: "Riya Design Co\nA/C 50100123456789\nIFSC HDFC0001234\nUPI riya@okhdfcbank",
           }}
         />
       </section>

@@ -137,6 +137,21 @@ export const profiles = pgTable("profiles", {
   taxIdType: text("tax_id_type"), // GSTIN | VAT | EIN | ...
   logoPath: text("logo_path"), // storage key in the private `logos` bucket
   addressJson: jsonb("address_json"),
+  /**
+   * How this user gets paid — bank account, UPI id, whatever they use.
+   *
+   * Free text rather than structured columns because the shape differs by
+   * country and by how the freelancer prefers to be paid: an Indian invoice
+   * carries account number, IFSC and often a UPI id; a US one carries ACH
+   * details; a European one an IBAN. Modelling all of that would constrain
+   * users without helping them, and it only ever gets printed verbatim.
+   *
+   * Stored on the profile so it is typed once. Retyping bank details on every
+   * invoice is both tedious and the kind of thing people eventually forget —
+   * and an invoice with no payment instructions is one the client cannot act
+   * on.
+   */
+  paymentDetails: text("payment_details"),
   plan: planEnum("plan").default("free").notNull(),
   planExpiresAt: timestamp("plan_expires_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })

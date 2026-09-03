@@ -104,6 +104,7 @@ export default async function NewDocumentPage({
             registered: Boolean(profile.taxId),
             nextInvoiceNumber,
             defaultDescription: project.title,
+            defaultNotes: profile.paymentDetails ?? "",
           }}
         />
       </Shell>

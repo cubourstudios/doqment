@@ -31,6 +31,8 @@ export type InvoiceFormContext = {
   registered: boolean;
   nextInvoiceNumber: string;
   defaultDescription: string;
+  /** The user's saved payment details, seeded into a new invoice's notes. */
+  defaultNotes: string;
 };
 
 /**
@@ -342,7 +344,8 @@ export function InvoiceForm({
         <Textarea
           id="notes"
           name="notes"
-          rows={3}
+          rows={4}
+          defaultValue={initial?.notes ?? context.defaultNotes}
           placeholder="Payment terms, bank details, thank-you note"
         />
       </div>

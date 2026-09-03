@@ -25,6 +25,7 @@ export const onboardingSchema = z.object({
    * the invoice form asks for it at the point it actually matters instead.
    */
   address: z.string().max(500).optional().or(z.literal("")),
+  paymentDetails: z.string().max(1000).optional().or(z.literal("")),
 });
 
 export type OnboardingInput = z.infer<typeof onboardingSchema>;

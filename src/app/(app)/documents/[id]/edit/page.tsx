@@ -81,6 +81,9 @@ export default async function EditInvoicePage({
           registered: Boolean(profile.taxId),
           nextInvoiceNumber: row.invoice.invoiceNumber,
           defaultDescription: "",
+          // An edit keeps whatever the invoice already said; seeding the
+          // profile default here would overwrite notes the user wrote.
+          defaultNotes: "",
         }}
         submitLabel="Save changes"
         pendingLabel="Saving…"

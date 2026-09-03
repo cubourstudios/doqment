@@ -149,6 +149,24 @@ export function ProfileForm({
         </p>
       </div>
 
+      <div className="grid gap-2">
+        <Label htmlFor="paymentDetails">How clients pay you</Label>
+        <Textarea
+          id="paymentDetails"
+          name="paymentDetails"
+          rows={4}
+          defaultValue={profile.paymentDetails ?? ""}
+          placeholder={"Account name\nAccount number\nIFSC / SWIFT\nUPI id"}
+        />
+        {/* Typed once here rather than on every invoice. Retyping bank details
+            each time is tedious and eventually gets forgotten, and an invoice
+            with no payment instructions is one the client cannot act on. */}
+        <p className="text-muted-foreground text-sm">
+          Added to every new invoice, so you don&apos;t retype it. You can
+          still change it on any single invoice.
+        </p>
+      </div>
+
       {state.error ? (
         <p role="alert" className="text-destructive text-sm">
           {state.error}
