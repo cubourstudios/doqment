@@ -29,6 +29,16 @@ export type TemplateField = {
    * depends on forms arriving mostly filled in.
    */
   prefill?: string;
+  /**
+   * Value to start with when there is nothing to pre-fill from.
+   *
+   * This is where the product's advice actually lands. Help text reading
+   * "usually yes" beside an unticked box is the product declining to take its
+   * own recommendation, and a user who does not know what a confidentiality
+   * period should be is exactly who this is for — an empty box asks them to
+   * invent an answer.
+   */
+  default?: string | boolean;
 };
 
 export type TemplateSchema = {

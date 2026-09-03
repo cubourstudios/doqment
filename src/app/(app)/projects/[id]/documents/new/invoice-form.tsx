@@ -33,6 +33,27 @@ export type InvoiceFormContext = {
   defaultDescription: string;
 };
 
+/**
+ * The terms a freelancer actually offers. "Due on receipt" exists because it is
+ * the honest option for a small job, not because anyone enjoys chasing it.
+ */
+const PAYMENT_TERMS = [
+  { days: 0, label: "On receipt" },
+  { days: 7, label: "Net 7" },
+  { days: 15, label: "Net 15" },
+  { days: 30, label: "Net 30" },
+] as const;
+
+/** Date arithmetic on the ISO string, to avoid a timezone shifting the day. */
+function addDays(isoDate: string, days: number): string {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+const TODAY = () => new Date().toISOString().slice(0, 10);
+
 let nextLineId = 1;
 
 export function InvoiceForm({
@@ -52,6 +73,10 @@ export function InvoiceForm({
       unitPrice: "",
     },
   ]);
+  const [issueDate, setIssueDate] = useState(TODAY);
+  // Net 30 by default: the most common term, and it guarantees the invoice can
+  // actually become overdue rather than sitting outside the tracking entirely.
+  const [dueDate, setDueDate] = useState(() => addDays(TODAY(), 30));
   const [discount, setDiscount] = useState("");
   const [rate, setRate] = useState(context.registered ? 1800 : 0);
 
@@ -96,14 +121,52 @@ export function InvoiceForm({
             id="issueDate"
             name="issueDate"
             type="date"
-            defaultValue={new Date().toISOString().slice(0, 10)}
+            value={issueDate}
+            onChange={(event) => setIssueDate(event.target.value)}
             required
           />
         </div>
         <div className="grid gap-2">
           <Label htmlFor="dueDate">Due date</Label>
-          <Input id="dueDate" name="dueDate" type="date" />
+          <Input
+            id="dueDate"
+            name="dueDate"
+            type="date"
+            value={dueDate}
+            onChange={(event) => setDueDate(event.target.value)}
+          />
         </div>
+      </div>
+
+      {/*
+        Payment terms as one tap.
+
+        This is not decoration. An invoice saved without a due date can never
+        become overdue, so the dashboard's headline number quietly excludes it —
+        the user is chasing money the product has silently stopped tracking.
+        Defaulting to 30 days and offering the common terms means the field is
+        filled by default rather than skipped, and "Net 30" is the vocabulary
+        already on most freelancers' invoices.
+      */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-muted-foreground text-sm">Payment terms</span>
+        {PAYMENT_TERMS.map((term) => {
+          const value = addDays(issueDate, term.days);
+          const selected = dueDate === value;
+
+          return (
+            <Button
+              key={term.days}
+              type="button"
+              variant={selected ? "secondary" : "ghost"}
+              size="sm"
+              aria-pressed={selected}
+              onClick={() => setDueDate(value)}
+            >
+              {term.label}
+            </Button>
+          );
+        })}
       </div>
 
       <section className="grid gap-3">
@@ -174,10 +237,15 @@ export function InvoiceForm({
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-sm">
-                {totals?.lines[index]
-                  ? formatMinor(totals.lines[index].amount, context.currency)
-                  : "—"}
+              {/* Labelled, because an unexplained figure under two inputs
+                  reads as a stray character rather than this line's total. */}
+              <span className="text-sm">
+                <span className="text-muted-foreground">Line total </span>
+                <span className="font-medium tabular-nums">
+                  {totals?.lines[index]
+                    ? formatMinor(totals.lines[index].amount, context.currency)
+                    : "—"}
+                </span>
               </span>
               {lines.length > 1 ? (
                 <Button
@@ -220,7 +288,7 @@ export function InvoiceForm({
             value={String(rate)}
             onValueChange={(v) => setRate(Number(v))}
           >
-            <SelectTrigger id="taxRateBasisPoints">
+            <SelectTrigger id="taxRateBasisPoints" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -234,6 +302,8 @@ export function InvoiceForm({
         </div>
       </div>
 
+      <InvoiceTotals totals={totals} currency={context.currency} />
+
       <div className="grid gap-2">
         <Label htmlFor="notes">Notes</Label>
         <Textarea
@@ -244,19 +314,18 @@ export function InvoiceForm({
         />
       </div>
 
-      <InvoiceTotals totals={totals} currency={context.currency} />
-
       {state.error ? (
         <p role="alert" className="text-destructive text-sm">
           {state.error}
         </p>
       ) : null}
 
-      <SubmitButton pendingLabel="Creating…">Create invoice</SubmitButton>
-
-      <p className="text-muted-foreground text-center text-sm">
-        This invoice will be numbered {context.nextInvoiceNumber}.
-      </p>
+      <div className="grid gap-2">
+        <p className="text-muted-foreground text-sm">
+          This invoice will be numbered {context.nextInvoiceNumber}.
+        </p>
+        <SubmitButton pendingLabel="Creating…">Create invoice</SubmitButton>
+      </div>
     </form>
   );
 }

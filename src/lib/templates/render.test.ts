@@ -81,13 +81,80 @@ describe("buildPrefill", () => {
     expect(values.scope).toBe("");
   });
 
-  it("starts checkboxes unticked", () => {
+  it("starts checkboxes unticked when no default is given", () => {
     const values = buildPrefill(
       { fields: [{ name: "mutual", label: "Mutual", type: "checkbox" }] },
       context,
     );
 
     expect(values.mutual).toBe(false);
+  });
+
+  it("ticks a checkbox whose template says it should default on", () => {
+    // Advising "usually yes" while defaulting to no is the product hedging.
+    const values = buildPrefill(
+      {
+        fields: [
+          { name: "mutual", label: "Mutual", type: "checkbox", default: true },
+        ],
+      },
+      context,
+    );
+
+    expect(values.mutual).toBe(true);
+  });
+
+  it("uses a template default when there is nothing to prefill from", () => {
+    const values = buildPrefill(
+      {
+        fields: [
+          { name: "term_years", label: "Years", type: "number", default: "3" },
+        ],
+      },
+      context,
+    );
+
+    expect(values.term_years).toBe("3");
+  });
+
+  it("prefers real context over a template default", () => {
+    // A default is a starting point for the unknown, not a replacement for
+    // something the user has already told us.
+    const values = buildPrefill(
+      {
+        fields: [
+          {
+            name: "client_name",
+            label: "Client",
+            type: "text",
+            prefill: "client.name",
+            default: "The Client",
+          },
+        ],
+      },
+      context,
+    );
+
+    expect(values.client_name).toBe("Acme Pvt Ltd");
+  });
+
+  it("falls back to the default when the context value is missing", () => {
+    const values = buildPrefill(
+      {
+        fields: [
+          {
+            name: "client_name",
+            label: "Client",
+            type: "text",
+            prefill: "client.name",
+            default: "The Client",
+          },
+        ],
+      },
+      { ...context, client: null },
+    );
+
+    expect(values.client_name).toBe("The Client");
   });
 });
 

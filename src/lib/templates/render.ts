@@ -79,11 +79,17 @@ export function buildPrefill(
 
   for (const field of schema.fields) {
     if (field.type === "checkbox") {
-      values[field.name] = false;
+      values[field.name] = field.default === true;
       continue;
     }
 
-    values[field.name] = field.prefill ? readPath(field.prefill, context) : "";
+    // Context first, then the template's own default. A real client name beats
+    // a generic starting value, but a starting value beats an empty box.
+    const prefilled = field.prefill ? readPath(field.prefill, context) : "";
+
+    values[field.name] =
+      prefilled ||
+      (typeof field.default === "string" ? field.default : "");
   }
 
   return values;

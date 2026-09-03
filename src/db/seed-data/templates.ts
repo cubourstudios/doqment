@@ -358,10 +358,13 @@ function nda(region: Region): SeedTemplate {
           name: "mutual",
           label: "Mutual (both sides share confidential information)",
           type: "checkbox",
+          // The help says "usually yes", so the default says yes too. Advising
+          // one thing and defaulting to the other is the product hedging.
+          default: true,
           help: "Usually yes. You will share your methods and pricing as surely as they share their plans.",
         },
         { name: "purpose", label: "Purpose of disclosure", type: "textarea", required: true },
-        { name: "term_years", label: "Confidentiality period (years)", type: "number", required: true },
+        { name: "term_years", label: "Confidentiality period (years)", type: "number", required: true, default: "3", help: "Three years is the usual term for freelance work. Five or more is unusual outside deep technical secrets." },
         GOVERNING_LAW[region],
       ],
     },
