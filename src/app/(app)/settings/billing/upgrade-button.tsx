@@ -20,12 +20,18 @@ declare global {
  * Razorpay instead opens its own script over the page, which is why the ids
  * come back to the client and the checkout is launched from an effect.
  */
-export function UpgradeButton({ rail }: { rail: "razorpay" | "stripe" }) {
+export function UpgradeButton({
+  rail,
+  interval,
+}: {
+  rail: "razorpay" | "stripe";
+  interval: "month" | "year";
+}) {
   const router = useRouter();
   // useActionState passes (prevState, formData); the action needs neither, so
   // it is wrapped rather than given unused parameters.
   const [state, formAction] = useActionState<BillingState, FormData>(
-    () => startSubscription(),
+    () => startSubscription(interval),
     {},
   );
 

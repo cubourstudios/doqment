@@ -3,6 +3,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import Razorpay from "razorpay";
 
+import { planIdFor } from "./pricing";
 import type { BillingProvider, CheckoutSession } from "./types";
 
 /**
@@ -31,18 +32,18 @@ export function razorpayClient(): Razorpay {
 export const razorpayProvider: BillingProvider = {
   name: "razorpay",
 
-  async createSubscription({ userId }) {
-    const plan_id = process.env.RAZORPAY_PLAN_ID;
+  async createSubscription({ userId, interval }) {
+    const plan_id = planIdFor("razorpay", interval);
     const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
 
-    if (!plan_id) throw new Error("RAZORPAY_PLAN_ID is not set.");
     if (!keyId) throw new Error("NEXT_PUBLIC_RAZORPAY_KEY_ID is not set.");
 
     const subscription = await razorpayClient().subscriptions.create({
       plan_id,
-      // 120 months. Razorpay requires a finite count; ten years is effectively
-      // indefinite and renews long before anyone reaches it.
-      total_count: 120,
+      // Razorpay requires a finite count, so this is ten years of either
+      // billing period — effectively indefinite, and far beyond any realistic
+      // subscription life.
+      total_count: interval === "year" ? 10 : 120,
       customer_notify: 1,
       // notes is the only field that survives the round trip to the webhook,
       // so it carries the mapping back to a user.

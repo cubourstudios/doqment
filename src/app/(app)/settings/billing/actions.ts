@@ -11,6 +11,7 @@ import {
 import { razorpayProvider } from "@/lib/billing/razorpay";
 import { stripeProvider } from "@/lib/billing/stripe";
 import { providerForCountry } from "@/lib/billing/types";
+import type { BillingInterval } from "@/lib/billing/pricing";
 
 export type BillingState = {
   error?: string;
@@ -37,7 +38,9 @@ async function appUrl() {
  * frequently just fails, so presenting both would be offering people a way to
  * pick the one that does not work for them.
  */
-export async function startSubscription(): Promise<BillingState> {
+export async function startSubscription(
+  interval: BillingInterval,
+): Promise<BillingState> {
   const { userId, profile } = await requireProfile();
   const base = await appUrl();
 
@@ -51,6 +54,7 @@ export async function startSubscription(): Promise<BillingState> {
     session = await provider.createSubscription({
       userId,
       email: null,
+      interval,
       successUrl: `${base}/settings/billing?checkout=success`,
       cancelUrl: `${base}/settings/billing?checkout=cancelled`,
     });

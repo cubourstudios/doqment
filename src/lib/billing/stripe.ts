@@ -2,6 +2,7 @@ import "server-only";
 
 import Stripe from "stripe";
 
+import { planIdFor } from "./pricing";
 import type { BillingProvider, CheckoutSession } from "./types";
 
 /**
@@ -26,9 +27,8 @@ export function stripeClient(): Stripe {
 export const stripeProvider: BillingProvider = {
   name: "stripe",
 
-  async createSubscription({ userId, email, successUrl, cancelUrl }) {
-    const price = process.env.STRIPE_PRICE_ID;
-    if (!price) throw new Error("STRIPE_PRICE_ID is not set.");
+  async createSubscription({ userId, email, interval, successUrl, cancelUrl }) {
+    const price = planIdFor("stripe", interval);
 
     const session = await stripeClient().checkout.sessions.create({
       mode: "subscription",
@@ -39,7 +39,7 @@ export const stripeProvider: BillingProvider = {
       // to a user. Without it the payment succeeds and nobody gets upgraded.
       client_reference_id: userId,
       customer_email: email ?? undefined,
-      subscription_data: { metadata: { user_id: userId } },
+      subscription_data: { metadata: { user_id: userId, interval } },
     });
 
     if (!session.url) throw new Error("Stripe returned no checkout URL.");

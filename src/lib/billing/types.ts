@@ -1,3 +1,5 @@
+import type { BillingInterval } from "./pricing";
+
 /**
  * One interface, two providers.
  *
@@ -29,6 +31,7 @@ export type BillingProvider = {
   createSubscription(input: {
     userId: string;
     email: string | null;
+    interval: BillingInterval;
     successUrl: string;
     cancelUrl: string;
   }): Promise<CheckoutSession>;
@@ -51,7 +54,6 @@ export function providerForCountry(
   return country?.toUpperCase() === "IN" ? "razorpay" : "stripe";
 }
 
-export const PRICING = {
-  razorpay: { amount: "₹299", period: "month" },
-  stripe: { amount: "$6", period: "month" },
-} as const;
+// Pricing lives in ./pricing.ts, which is where the numbers and the reasoning
+// behind them are kept together.
+export type { BillingInterval } from "./pricing";

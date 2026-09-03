@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CheckIcon, ChevronLeftIcon } from "lucide-react";
+import { ChevronLeftIcon } from "lucide-react";
 
 import { requireProfile } from "@/lib/auth";
 import { getUsage, getUserPlan, limitsFor } from "@/lib/billing/plans";
 import { activeSubscriptionFor } from "@/lib/billing/entitlement";
-import { PRICING, providerForCountry } from "@/lib/billing/types";
+import { providerForCountry } from "@/lib/billing/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
-import { UpgradeButton } from "./upgrade-button";
+import { PlanPicker } from "./plan-picker";
 import { CancelButton } from "./cancel-button";
 
 export const metadata: Metadata = { title: "Billing" };
@@ -29,7 +29,6 @@ export default async function BillingPage({
 
   const limits = limitsFor(plan);
   const rail = providerForCountry(profile.country);
-  const price = PRICING[rail];
 
   return (
     <div className="mx-auto w-full max-w-lg">
@@ -81,35 +80,9 @@ export default async function BillingPage({
       </Card>
 
       {plan === "free" ? (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>
-              Pro — {price.amount}/{price.period}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <ul className="grid gap-2 text-sm">
-              {[
-                "Unlimited projects and documents",
-                "No watermark on generated PDFs",
-                "25 MB file uploads",
-              ].map((feature) => (
-                <li key={feature} className="flex items-center gap-2">
-                  <CheckIcon className="size-4 shrink-0" />
-                  {feature}
-                </li>
-              ))}
-            </ul>
-
-            <UpgradeButton rail={rail} />
-
-            <p className="text-muted-foreground text-xs">
-              {rail === "razorpay"
-                ? "Billed in rupees through Razorpay. Cancel any time."
-                : "Billed in US dollars through Stripe. Cancel any time."}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="mt-6">
+          <PlanPicker rail={rail} />
+        </div>
       ) : (
         <Card className="mt-6">
           <CardHeader>
