@@ -40,7 +40,12 @@ import type { DocumentState } from "./actions";
  * rather than five near-identical ones.
  */
 export async function createTemplateDocument(
-  projectId: string,
+  /**
+   * Null for Mode A — a document created without a project. The column is
+   * nullable, so such a document is filed against the user alone and can be
+   * attached to a project later without regenerating it.
+   */
+  projectId: string | null,
   docType: DocType,
   _prevState: DocumentState,
   formData: FormData,
@@ -60,16 +65,36 @@ export async function createTemplateDocument(
   const entitlement = await canCreateDocument(userId, plan);
   if (!entitlement.allowed) return { error: entitlement.reason };
 
-  const [row] = await db
-    .select({ project: projects, client: clients })
-    .from(projects)
-    .leftJoin(clients, eq(projects.clientId, clients.id))
-    .where(and(eq(projects.id, projectId), eq(projects.userId, userId)))
-    .limit(1);
+  // With a project, the client comes from it. Without one, the form names the
+  // client directly — Mode A must never require a project to exist first.
+  let project: typeof projects.$inferSelect | null = null;
+  let client: typeof clients.$inferSelect | null = null;
 
-  if (!row) return { error: "That project no longer exists." };
+  if (projectId) {
+    const [row] = await db
+      .select({ project: projects, client: clients })
+      .from(projects)
+      .leftJoin(clients, eq(projects.clientId, clients.id))
+      .where(and(eq(projects.id, projectId), eq(projects.userId, userId)))
+      .limit(1);
 
-  const { project, client } = row;
+    if (!row) return { error: "That project no longer exists." };
+
+    project = row.project;
+    client = row.client;
+  } else {
+    const clientId = formData.get("clientId");
+
+    if (typeof clientId === "string" && clientId) {
+      // Filtered by user as well as id: this connection bypasses row level
+      // security, so an id alone would read another account's client.
+      [client] = await db
+        .select()
+        .from(clients)
+        .where(and(eq(clients.id, clientId), eq(clients.userId, userId)))
+        .limit(1);
+    }
+  }
   const region = getCountryConfig(profile.country).region;
 
   const [template] = await db
@@ -133,11 +158,13 @@ export async function createTemplateDocument(
           taxId: client.taxId,
         }
       : null,
-    project: {
-      title: project.title,
-      startDate: project.startDate,
-      endDate: project.endDate,
-    },
+    project: project
+      ? {
+          title: project.title,
+          startDate: project.startDate,
+          endDate: project.endDate,
+        }
+      : null,
   };
 
   const country = getCountryConfig(profile.country);
@@ -147,7 +174,11 @@ export async function createTemplateDocument(
     context,
   );
 
-  const title = `${template.name} — ${client?.name ?? project.title}`;
+  // Falls back to the template's own name: a document with neither a client
+  // nor a project still needs something readable in the documents list.
+  const title = [template.name, client?.name ?? project?.title]
+    .filter(Boolean)
+    .join(" — ");
 
   const documentId = await db.transaction(async (tx) => {
     const [document] = await tx
@@ -193,7 +224,7 @@ export async function createTemplateDocument(
 
   await track(userId, "document_created", { docType });
 
-  revalidatePath(`/projects/${projectId}`);
+  if (projectId) revalidatePath(`/projects/${projectId}`);
   revalidatePath("/documents");
   redirect(`/documents/${documentId}`);
 }
