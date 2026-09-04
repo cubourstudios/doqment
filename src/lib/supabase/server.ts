@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
+import { requireSupabaseConfig } from "./env";
+
 /**
  * Supabase client for server components, server actions and route handlers.
  * Reads the session from Next's cookie store; still bound by RLS.
@@ -9,10 +11,11 @@ import { createServerClient } from "@supabase/ssr";
  */
 export async function createClient() {
   const cookieStore = await cookies();
+  const config = requireSupabaseConfig();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    config.url,
+    config.anonKey,
     {
       cookies: {
         getAll() {
@@ -49,7 +52,7 @@ export function createServiceRoleClient() {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
   }
 
-  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
+  return createServerClient(requireSupabaseConfig().url, key, {
     cookies: {
       getAll: () => [],
       setAll: () => {},

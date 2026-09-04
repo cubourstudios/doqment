@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+import { readSupabaseConfig } from "@/lib/supabase/env";
+
 /** Prefixes that require a signed-in user. */
 const PROTECTED_PREFIXES = [
   "/dashboard",
@@ -23,9 +25,34 @@ function isProtected(pathname: string) {
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  /*
+   * An unconfigured deployment degrades rather than dies.
+   *
+   * This runs on every request, so throwing here returns Internal Server Error
+   * for the entire site — the marketing pages, the login screen, everything —
+   * with nothing in the response to say why. That is the worst possible
+   * failure for the most likely production mistake.
+   *
+   * Passing the request through instead is safe: middleware is a convenience
+   * layer, not the gate. Every protected page calls `requireUser()` itself,
+   * which redirects to /login without a session, so nothing private renders
+   * because this returned early.
+   */
+  const config = readSupabaseConfig();
+
+  if (!config) {
+    console.error(
+      "Supabase is not configured: NEXT_PUBLIC_SUPABASE_URL and/or " +
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY are not set. Sessions cannot be " +
+        "refreshed and signing in will fail. Set them in your hosting " +
+        "provider's environment variables and redeploy.",
+    );
+    return response;
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    config.url,
+    config.anonKey,
     {
       cookies: {
         getAll() {
