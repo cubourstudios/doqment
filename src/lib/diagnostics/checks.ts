@@ -5,6 +5,7 @@ import path from "node:path";
 
 import postgres from "postgres";
 
+import { postgresOptions } from "@/db/connection";
 import { readSupabaseConfig } from "@/lib/supabase/env";
 
 /**
@@ -118,11 +119,16 @@ async function checkDatabase(): Promise<Check> {
     };
   }
 
-  // A separate short-lived connection: reusing the app's pooled client would
-  // report healthy from a cached handle rather than testing anything.
+  /*
+   * A separate short-lived connection — reusing the app's pooled client would
+   * report healthy from a cached handle rather than testing anything — but
+   * created with the app's own options, so this tests the connection the app
+   * actually makes. Checking with different options is how a health check
+   * passes while every page fails.
+   */
   const sql = postgres(connectionString, {
+    ...postgresOptions(connectionString),
     max: 1,
-    prepare: false,
     connect_timeout: 8,
     onnotice: () => {},
   });

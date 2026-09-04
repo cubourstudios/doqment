@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import * as schema from "./schema";
+import { postgresOptions } from "./connection";
 
 type Database = ReturnType<typeof drizzle<typeof schema>>;
 
@@ -21,16 +22,17 @@ function createDb(): Database {
   }
 
   /*
-   * `prepare: false` is mandatory: Supabase's pooler runs in transaction mode
-   * and does not support prepared statements. Without it everything works
-   * locally (direct connection) and fails in production.
+   * Connection options live in ./connection so the diagnostics page and
+   * check-db.mjs connect the same way. A health check that connects
+   * differently from the app reports healthy against a connection the app
+   * cannot make.
    *
    * The client is cached on `globalThis` so Next's dev-mode module reloading
    * doesn't open a new pool on every hot reload.
    */
   const sql =
     globalForDb.doqmentSql ??
-    postgres(connectionString, { prepare: false, max: 1 });
+    postgres(connectionString, { ...postgresOptions(connectionString), max: 1 });
 
   if (process.env.NODE_ENV !== "production") {
     globalForDb.doqmentSql = sql;
