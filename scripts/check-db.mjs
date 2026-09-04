@@ -1,12 +1,15 @@
 /**
  * Verifies a Supabase project is wired up correctly.
  *
- * Checks the four things that are individually easy to get wrong and that fail
- * confusingly later: the connection works, the tables exist, RLS is actually
- * enabled on every user-owned table, and the reference data is seeded.
+ * Checks the things that are individually easy to get wrong and that fail
+ * confusingly later: the connection works, every migration has been applied,
+ * the tables exist, RLS is actually enabled on every user-owned table, and the
+ * reference data is seeded.
  *
  * Run with `npm run db:check`.
  */
+import { readFileSync } from "node:fs";
+
 import postgres from "postgres";
 
 const EXPECTED_TABLES = [
@@ -66,6 +69,42 @@ function report(ok, message) {
 try {
   const [{ version }] = await sql`SELECT version()`;
   report(true, `connected — ${version.split(",")[0]}`);
+
+  /*
+   * Every migration applied?
+   *
+   * Checked before anything else about the schema, because it explains most of
+   * what would otherwise be reported below — and because the failure it
+   * catches is invisible here otherwise. A migration that only adds a column
+   * leaves every table present and every check passing, while the app fails on
+   * every authenticated page: requireProfile() selects all of `profiles`, so a
+   * column Drizzle knows about and Postgres does not takes down the dashboard,
+   * settings and everything else at once.
+   */
+  const journal = JSON.parse(
+    readFileSync(new URL("../drizzle/meta/_journal.json", import.meta.url)),
+  );
+
+  const applied = await sql`
+    SELECT hash FROM drizzle.__drizzle_migrations
+  `.catch(() => null);
+
+  if (applied === null) {
+    report(false, "no migrations have been applied — run npm run db:migrate");
+  } else {
+    const pending = journal.entries.length - applied.length;
+    report(
+      pending <= 0,
+      pending <= 0
+        ? `all ${journal.entries.length} migrations applied`
+        : `${pending} migration(s) pending (` +
+            journal.entries
+              .slice(applied.length)
+              .map((entry) => entry.tag)
+              .join(", ") +
+            ") — run npm run db:migrate",
+    );
+  }
 
   const tables = (
     await sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
