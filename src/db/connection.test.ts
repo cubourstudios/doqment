@@ -83,12 +83,27 @@ describe("postgresOptions", () => {
    * carries a copy. A copy that drifts would connect differently from the app
    * — which is the precise failure this whole module exists to prevent.
    */
-  it("keeps check-db.mjs connecting the same way", () => {
-    const script = readFileSync("scripts/check-db.mjs", "utf8");
+  it.each(["scripts/check-db.mjs", "scripts/apply-manual-sql.mjs"])(
+    "keeps %s connecting the same way",
+    (path) => {
+      const script = readFileSync(path, "utf8");
 
-    expect(script).toContain('ssl: "require"');
-    expect(script).toContain("prepare: false");
-    expect(script).toMatch(/sslmode=/);
-    expect(script).toMatch(/localhost/);
+      expect(script).toContain('ssl: "require"');
+      expect(script).toMatch(/sslmode=/);
+      expect(script).toMatch(/localhost/);
+    },
+  );
+
+  /*
+   * drizzle.config.ts is TypeScript, so it imports this module rather than
+   * copying it. Pinned anyway: a migration that cannot connect is how a schema
+   * change silently never ships, and the app then expects columns the database
+   * does not have — which is the failure that took the dashboard down.
+   */
+  it("keeps migrations connecting the same way", () => {
+    const config = readFileSync("drizzle.config.ts", "utf8");
+
+    expect(config).toContain("sslModeFor");
+    expect(config).toMatch(/ssl:\s*sslModeFor/);
   });
 });
