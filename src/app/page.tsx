@@ -280,9 +280,16 @@ export default function LandingPage() {
                 </p>
                 <ul className="mt-6 grid gap-3 text-base">
                   {PRO_FEATURES.map((feature) => (
-                    <li key={feature} className="flex items-start gap-3">
+                    <li key={feature.label} className="flex items-start gap-3">
                       <CheckIcon className="text-primary mt-1 size-4 shrink-0" />
-                      {feature}
+                      <span>
+                        {feature.label}
+                        {feature.soon ? (
+                          <span className="text-muted-foreground ml-1.5 text-sm">
+                            Coming soon
+                          </span>
+                        ) : null}
+                      </span>
                     </li>
                   ))}
                 </ul>

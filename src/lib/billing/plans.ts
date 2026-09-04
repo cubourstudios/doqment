@@ -23,8 +23,10 @@ export type PlanLimits = {
 
 const LIMITS: Record<Plan, PlanLimits> = {
   free: {
-    maxProjects: 3,
-    maxDocumentsPerMonth: 5,
+    // Matches what the pricing page advertises. Enforcing a different number
+    // from the one on sale is how a user learns the limits are arbitrary.
+    maxProjects: 2,
+    maxDocumentsPerMonth: 3,
     // The watermark is what makes Free genuinely usable but not quite
     // presentable to a client — the honest version of a trial.
     watermark: true,

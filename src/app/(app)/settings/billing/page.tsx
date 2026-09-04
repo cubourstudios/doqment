@@ -38,7 +38,7 @@ export default async function BillingPage({
     <div className="mx-auto w-full max-w-lg">
       <Link
         href="/settings"
-        className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1 text-sm"
+        className="text-muted-foreground hover:text-foreground -my-2 mb-2 inline-flex min-h-11 items-center gap-1 text-sm"
       >
         <ChevronLeftIcon className="size-4" />
         Settings

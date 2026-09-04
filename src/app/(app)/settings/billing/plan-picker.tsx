@@ -89,9 +89,18 @@ export function PlanPicker({ rail }: { rail: BillingRail }) {
 
         <ul className="grid gap-2 text-sm">
           {PRO_FEATURES.map((feature) => (
-            <li key={feature} className="flex items-start gap-2">
+            <li key={feature.label} className="flex items-start gap-2">
               <CheckIcon className="mt-0.5 size-4 shrink-0" />
-              {feature}
+              <span>
+                {feature.label}
+                {/* Not yet built. Said plainly on the screen where someone is
+                    deciding to pay, rather than left to be discovered after. */}
+                {feature.soon ? (
+                  <span className="text-muted-foreground ml-1.5 text-xs">
+                    Coming soon
+                  </span>
+                ) : null}
+              </span>
             </li>
           ))}
         </ul>

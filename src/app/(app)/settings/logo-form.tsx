@@ -57,7 +57,7 @@ export function LogoForm({ signedUrl }: { signedUrl: string | null }) {
           name="logo"
           accept="image/png,image/jpeg,image/webp"
           onChange={() => formRef.current?.requestSubmit()}
-          className="file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80 block w-full text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:px-3 file:py-2 file:text-sm file:font-medium"
+          className="min-h-11 file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80 block w-full text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:px-3 file:py-2 file:text-sm file:font-medium"
         />
 
         {state.error ? (

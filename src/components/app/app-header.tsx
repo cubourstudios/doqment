@@ -27,7 +27,7 @@ export function AppHeader({
 }) {
   return (
     <header className="bg-background/95 safe-top sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b px-4 backdrop-blur">
-      <Link href="/dashboard" className="flex items-center gap-2 font-semibold md:hidden">
+      <Link href="/dashboard" className="flex min-h-11 items-center gap-2 font-semibold md:hidden">
         <DoqmentMark className="text-primary size-5 shrink-0" />
         Doqment
       </Link>

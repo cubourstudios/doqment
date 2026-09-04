@@ -71,7 +71,9 @@ export default async function DocumentsPage({
             asChild
             size="sm"
             variant={active === option.value ? "default" : "outline"}
-            className="shrink-0"
+            // min-h-11/min-w-11: these measured 41x32, under the 44px floor on
+            // both axes, and they are the primary way this page is navigated.
+            className="min-h-11 min-w-11 shrink-0"
           >
             <Link
               href={

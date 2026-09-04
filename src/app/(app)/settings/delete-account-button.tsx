@@ -26,7 +26,7 @@ export function DeleteAccountButton() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="text-destructive w-fit">
+        <Button variant="ghost" size="sm" className="text-destructive min-h-11 w-fit">
           Delete account
         </Button>
       </DialogTrigger>

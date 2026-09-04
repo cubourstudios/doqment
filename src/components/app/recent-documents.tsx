@@ -62,7 +62,7 @@ export function RecentDocuments({ rows }: { rows: RecentDocument[] }) {
             type="button"
             onClick={() => toggle(column.key)}
             aria-label={`Sort by ${column.label}`}
-            className={`hover:text-foreground flex items-center gap-1 text-left font-medium ${column.className}`}
+            className={`hover:text-foreground flex min-h-11 items-center gap-1 text-left font-medium ${column.className}`}
           >
             {column.label}
             <ArrowUpDownIcon
@@ -89,8 +89,11 @@ export function RecentDocuments({ rows }: { rows: RecentDocument[] }) {
                 ) : null}
               </span>
 
-              <span className="flex items-center gap-2 md:col-span-3">
-                <Badge variant="secondary" className="font-normal">
+              {/* min-w-0 + wrap: at 768 the "Service Agreement" badge spilled
+                  28px out of its column and printed over the date, reading
+                  "Service AgreemenSep 3". */}
+              <span className="flex min-w-0 flex-wrap items-center gap-2 md:col-span-3">
+                <Badge variant="secondary" className="max-w-full truncate font-normal">
                   {DOC_TYPE_LABELS[row.docType as keyof typeof DOC_TYPE_LABELS] ??
                     row.docType}
                 </Badge>

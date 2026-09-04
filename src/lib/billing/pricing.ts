@@ -21,11 +21,11 @@
  * months is the conventional discount and is large enough to be the obvious
  * choice without devaluing the monthly price.
  *
- * **The India price is set below the psychological ₹250 line.** ₹199/month is
- * under what most Indian freelancers spend on a single coffee meeting, and it
- * reads as an easy yes rather than a considered purchase. The annual plan at
- * ₹1,999 lands under ₹2,000, which is the number a freelancer actually
- * budgets against.
+ * **The India price is ₹299/month.** It sits above the ₹250 line an earlier
+ * revision aimed under, which is a deliberate trade: Free now carries a
+ * per-document charge, so Pro is sold against an accumulating bill rather than
+ * against nothing — the pitch is "unlimited after about ten documents", not
+ * "cheap". The annual plan is ten months at that rate.
  *
  * **International is priced higher, not converted.** $6/month is not ₹199 at
  * any exchange rate, and it should not be — a US freelancer's alternative is
@@ -83,13 +83,13 @@ export const PRICING: Record<BillingRail, RailPricing> = {
     billedAs: "Billed in rupees through Razorpay.",
     monthly: {
       interval: "month",
-      amount: "₹199",
+      amount: "₹299",
       envKey: "RAZORPAY_PLAN_ID_MONTHLY",
     },
     annual: {
       interval: "year",
-      amount: "₹1,999",
-      comparedTo: "₹2,388",
+      amount: "₹2,990",
+      comparedTo: "₹3,588",
       saving: "2 months free",
       envKey: "RAZORPAY_PLAN_ID_ANNUAL",
     },
@@ -112,12 +112,20 @@ export const PRICING: Record<BillingRail, RailPricing> = {
   },
 };
 
-/** What Pro actually buys, in the order a prospect cares about. */
-export const PRO_FEATURES = [
-  "Unlimited projects and documents",
-  "No Doqment mark on your PDFs",
-  "Every document type, including contracts",
-  "25 MB file uploads",
+/**
+ * What Pro actually buys, in the order a prospect cares about.
+ *
+ * `soon` marks something not built yet. It is listed because it is on the
+ * roadmap and priced into the plan, but it must never render as a capability
+ * you get on paying today — a pricing page is the last place to be vague about
+ * what exists.
+ */
+export const PRO_FEATURES: readonly { label: string; soon?: boolean }[] = [
+  { label: "Unlimited documents of every type" },
+  { label: "Unlimited projects" },
+  { label: "No Doqment footer" },
+  { label: "Your logo and brand colour on every document" },
+  { label: "AI proposal drafting from meeting notes", soon: true },
 ] as const;
 
 export function priceFor(

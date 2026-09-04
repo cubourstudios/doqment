@@ -99,7 +99,7 @@ export function ProjectUploads({
           // Submitting on selection saves a tap. The file input is already an
           // explicit, deliberate choice — a second confirm button adds nothing.
           onChange={() => formRef.current?.requestSubmit()}
-          className="file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80 block w-full text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:px-3 file:py-2 file:text-sm file:font-medium"
+          className="min-h-11 file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80 block w-full text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:px-3 file:py-2 file:text-sm file:font-medium"
         />
 
         {state.error ? (
