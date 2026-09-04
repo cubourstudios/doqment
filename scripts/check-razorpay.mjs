@@ -69,6 +69,32 @@ if (!keyId.startsWith("rzp_")) {
 const mode = keyId.startsWith("rzp_live_") ? "live" : "test";
 console.log(`\nRazorpay — ${mode} mode (${keyId})\n`);
 
+/*
+ * A live key on a developer machine is a footgun, not a configuration choice.
+ *
+ * Every payment made against it is a real charge on a real card, with real
+ * settlement and refund fees, and a test run that ends in a refund still costs
+ * the gateway fee. Live credentials belong in the hosting provider's
+ * environment and nowhere else — not in .env.local, not in a terminal history,
+ * not pasted into a chat.
+ *
+ * This warns rather than refuses: checking a live configuration before
+ * launching is a legitimate thing to want to do. It just should never happen
+ * by accident.
+ */
+if (mode === "live") {
+  console.warn("  ⚠  These are LIVE credentials. Payments made against them");
+  console.warn("     charge real cards and settle real money.");
+  console.warn("");
+  console.warn("     Build and test in test mode (rzp_test_…). Live keys");
+  console.warn("     belong in your hosting provider's environment variables,");
+  console.warn("     never in .env.local on a laptop.");
+  console.warn("");
+  console.warn("     If a live secret has ever been shared — a chat, a commit,");
+  console.warn("     a screenshot — regenerate the pair before going further.");
+  console.warn("");
+}
+
 const auth = "Basic " + Buffer.from(`${keyId}:${keySecret}`).toString("base64");
 
 async function api(path) {
