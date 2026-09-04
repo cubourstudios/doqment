@@ -12,6 +12,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { invoiceStatusEnum } from "@/db/schema";
 import { INVOICE_STATUS_LABELS } from "@/lib/labels";
+import { statusOptions } from "@/lib/invoice/status";
 import { updateInvoiceStatus } from "../actions";
 
 export function InvoiceStatusForm({
@@ -40,7 +41,16 @@ export function InvoiceStatusForm({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {invoiceStatusEnum.enumValues.map((value) => (
+          {/*
+            Only where this invoice can actually go, plus where it already is.
+            Every status used to be offered from every status, which put "Draft"
+            in front of a paid invoice — and returning to draft re-opens it to
+            being edited or deleted, which is the one thing the numbering and
+            soft-delete design exists to prevent. The server refuses it either
+            way; offering an option that will be silently ignored is a worse
+            answer than not offering it.
+          */}
+          {statusOptions(status).map((value) => (
             <SelectItem key={value} value={value}>
               {INVOICE_STATUS_LABELS[value]}
             </SelectItem>
