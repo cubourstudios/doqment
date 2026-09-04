@@ -61,6 +61,18 @@ export type PriceOption = {
   interval: BillingInterval;
   /** Formatted for display, in the currency actually charged. */
   amount: string;
+  /**
+   * The same price in minor units — paise, cents — which is what Razorpay
+   * stores on the plan.
+   *
+   * Carried alongside the display string because until now nothing connected
+   * the two. The page could advertise ₹299 while the plan behind it charged
+   * ₹199, and both halves would look correct in isolation; the only place the
+   * discrepancy surfaced was the customer's card statement. This is the value
+   * `npm run razorpay:check` compares against the live plan, and the number to
+   * enter when creating that plan.
+   */
+  amountMinor: number;
   /** What the same period costs on the monthly plan, for showing the saving. */
   comparedTo?: string;
   /** e.g. "2 months free" */
@@ -84,11 +96,13 @@ export const PRICING: Record<BillingRail, RailPricing> = {
     monthly: {
       interval: "month",
       amount: "₹299",
+      amountMinor: 29_900,
       envKey: "RAZORPAY_PLAN_ID_MONTHLY",
     },
     annual: {
       interval: "year",
       amount: "₹2,990",
+      amountMinor: 299_000,
       comparedTo: "₹3,588",
       saving: "2 months free",
       envKey: "RAZORPAY_PLAN_ID_ANNUAL",
@@ -100,11 +114,13 @@ export const PRICING: Record<BillingRail, RailPricing> = {
     monthly: {
       interval: "month",
       amount: "$6",
+      amountMinor: 600,
       envKey: "RAZORPAY_PLAN_ID_MONTHLY_USD",
     },
     annual: {
       interval: "year",
       amount: "$60",
+      amountMinor: 6_000,
       comparedTo: "$72",
       saving: "2 months free",
       envKey: "RAZORPAY_PLAN_ID_ANNUAL_USD",

@@ -110,8 +110,8 @@ is created, so each currency needs its own pair:
 
 | Plan | Currency | Amount | Period |
 |---|---|---|---|
-| Pro monthly | INR | ₹199 | Monthly |
-| Pro yearly | INR | ₹1,999 | Yearly |
+| Pro monthly | INR | ₹299 | Monthly |
+| Pro yearly | INR | ₹2,990 | Yearly |
 | Pro monthly (intl) | USD | $6 | Monthly |
 | Pro yearly (intl) | USD | $60 | Yearly |
 
@@ -163,7 +163,21 @@ marked `pro` whose paid period plus grace has elapsed, which is what catches a
 cancellation webhook that never arrived. `CRON_SECRET` must be set — without
 it the endpoint is a public downgrade trigger.
 
-### 5. Verify
+### 5. Check the configuration
+
+```bash
+npm run razorpay:check
+```
+
+Asks Razorpay directly whether the credentials are accepted, whether each
+configured plan exists, and whether it charges what the app advertises. That
+last one has no other symptom: a plan priced differently from the page selling
+it looks correct everywhere except the customer's card statement.
+
+A plan's amount and currency are fixed when it is created. To change a price,
+create a new plan and repoint the variable — editing is not possible.
+
+### 6. Verify a real payment
 
 In test mode, subscribe with a Razorpay test card, then check that
 `profiles.plan` flips to `pro` **after the webhook lands**, not when the
