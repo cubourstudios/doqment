@@ -56,6 +56,13 @@ export default async function EditInvoicePage({
   const data = row.version.dataJson as InvoicePdfData;
   const country = getCountryConfig(profile.country);
 
+  // The client the invoice was actually issued to, which is what the stored
+  // snapshot records. Seeding this from the project's client instead made the
+  // form's live preview agree with the wrong answer — and the client's country
+  // and state are what decide CGST+SGST against IGST against a zero-rated
+  // export. See the client resolution in ../edit-invoice.ts.
+  const invoiceClient = data.client ?? row.client;
+
   return (
     <div className="mx-auto w-full max-w-lg">
       <Link
@@ -77,8 +84,8 @@ export default async function EditInvoicePage({
           currency: data.currency,
           supplierCountry: country.code,
           supplierStateCode: stateCodeFromGstin(profile.taxId),
-          clientCountry: row.client?.country ?? null,
-          clientStateCode: stateCodeFromGstin(row.client?.taxId ?? null),
+          clientCountry: invoiceClient?.country ?? null,
+          clientStateCode: stateCodeFromGstin(invoiceClient?.taxId ?? null),
           registered: Boolean(profile.taxId),
           nextInvoiceNumber: row.invoice.invoiceNumber,
           defaultDescription: "",

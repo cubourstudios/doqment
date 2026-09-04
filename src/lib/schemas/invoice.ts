@@ -67,9 +67,23 @@ export const invoiceSchema = z.object({
     .number()
     .int()
     .refine((v) => ALLOWED_TAX_RATES.includes(v), "Pick a tax rate from the list"),
+  /**
+   * Indian GST state code — the first two digits of a GSTIN.
+   *
+   * Exactly two digits, not "at most two characters". This value overrides the
+   * client's own state when computeTax decides between CGST+SGST and IGST, and
+   * it is compared against the supplier's code with a plain `!==`. So "9" for
+   * Uttar Pradesh never matches the "09" that stateCodeFromGstin derives, and
+   * an intra-state supply is charged IGST — precisely the misfiled tax that
+   * tax.ts exists to prevent, on an invoice that looks correct on its face.
+   *
+   * The form does not submit this field at all, which makes anything arriving
+   * in it hand-crafted and all the more worth checking on the server.
+   */
   placeOfSupply: z
     .string()
-    .max(2)
+    .trim()
+    .regex(/^\d{2}$/, "A place of supply is a two-digit state code, like 09")
     .optional()
     .or(z.literal("")),
 });

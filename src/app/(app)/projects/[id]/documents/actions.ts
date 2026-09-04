@@ -24,6 +24,7 @@ import { reserveInvoiceNumber } from "@/lib/invoice/numbering";
 import { stateCodeFromGstin, taxBreakdownToJson } from "@/lib/invoice/tax";
 import { invoiceSchema } from "@/lib/schemas/invoice";
 import { canCreateDocument, getUserPlan } from "@/lib/billing/plans";
+import { LIMITS, rateLimit } from "@/lib/rate-limit";
 import { track } from "@/lib/analytics";
 
 export type DocumentState = { error?: string };
@@ -43,6 +44,26 @@ export async function createInvoice(
   formData: FormData,
 ): Promise<DocumentState> {
   const { userId, profile } = await requireProfile();
+
+  /*
+   * Throttled the same way createTemplateDocument is, and for a stronger
+   * reason: this is the heavier path — a transaction that takes a row lock on
+   * the user's counter — and every call it lets through spends an invoice
+   * number permanently. A stuck retry loop against an unthrottled action would
+   * burn a visible hole through the series, and the series is the one thing in
+   * this product that cannot be renumbered afterwards.
+   *
+   * Keyed by user rather than IP: the caller is authenticated here, so this is
+   * an exact identity rather than a spoofable header.
+   */
+  const limited = rateLimit(
+    `generate:${userId}`,
+    LIMITS.generate.limit,
+    LIMITS.generate.windowSeconds,
+  );
+  if (!limited.allowed) {
+    return { error: "Too many documents just now. Try again in a few minutes." };
+  }
 
   const plan = await getUserPlan(userId);
   const entitlement = await canCreateDocument(userId, plan);
