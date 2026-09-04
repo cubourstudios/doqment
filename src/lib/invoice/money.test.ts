@@ -241,3 +241,95 @@ describe("formatDecimal", () => {
     expect(formatDecimal("not a number", "INR")).toBe("INR not a number");
   });
 });
+
+/**
+ * Half-up on a negative is the case JavaScript gets wrong for free:
+ * Math.round(-0.5) is -0, and bigint division truncates towards zero. A credit
+ * or an adjustment entered as a negative amount must round the same distance
+ * from zero as the positive it reverses, or the two do not cancel.
+ */
+describe("rounding a negative amount", () => {
+  it("rounds a negative half away from zero", () => {
+    // -10.005 is -10.01, the mirror of 10.005 -> 10.01.
+    expect(parseAmount("-10.005")).toBe(-1001n);
+    expect(parseAmount("-10.004")).toBe(-1000n);
+  });
+
+  it("mirrors the positive exactly", () => {
+    for (const value of ["0.005", "1.005", "12.345", "99.999"]) {
+      expect(parseAmount(`-${value}`)).toBe(-parseAmount(value)!);
+    }
+  });
+
+  it("renders a negative zero-decimal amount without a point", () => {
+    expect(toDecimalString(-100n, "JPY")).toBe("-100");
+  });
+
+  it("formats a negative rupee amount with the sign outside the symbol", () => {
+    expect(formatMinor(-12345678n, "INR")).toBe("-₹1,23,456.78");
+  });
+});
+
+/**
+ * Zero-decimal currencies are the 100x error the module opens by warning
+ * about, and every conversion has to agree about the digit count or the error
+ * appears at whichever step disagrees.
+ */
+describe("zero-decimal currencies", () => {
+  it("reads the digit count from the currency, not its case", () => {
+    // Currency codes come from a `varchar` column and from form values. "jpy"
+    // treated as a two-decimal currency is a hundredfold overcharge.
+    expect(minorUnitDigits("jpy")).toBe(0);
+    expect(minorUnitDigits("JPY")).toBe(0);
+    expect(minorUnitDigits("inr")).toBe(2);
+  });
+
+  it("rounds a decimal a user typed into a yen field", () => {
+    // There is no half yen: 100.5 is 101, and 100.4 is 100.
+    expect(parseAmount("100.5", "JPY")).toBe(101n);
+    expect(parseAmount("100.4", "JPY")).toBe(100n);
+  });
+
+  it("round-trips through the `numeric` column representation", () => {
+    for (const value of [0n, 1n, 100n, 12345n, -12345n]) {
+      expect(fromDecimalString(toDecimalString(value, "JPY"), "JPY")).toBe(
+        value,
+      );
+    }
+  });
+
+  it("formats a stored yen total with no fraction", () => {
+    expect(formatDecimal("5000", "JPY")).toBe("¥5,000");
+  });
+});
+
+describe("fromDecimalString", () => {
+  it("throws rather than returning zero for a value that is not a decimal", () => {
+    // Callers treat the result as money; a silent 0 would be a wrong invoice
+    // rather than a visible failure.
+    expect(() => fromDecimalString("not a number")).toThrow();
+    expect(() => fromDecimalString("")).toThrow();
+  });
+});
+
+describe("exactness past the float boundary", () => {
+  it("rounds a line exactly on a half-paisa tie", () => {
+    // 1.5 x ₹0.05 = ₹0.075. Truncating instead of rounding half-up loses a
+    // paisa on every such line, and the printed lines stop adding up.
+    expect(lineAmount(5n, 1500n)).toBe(8n);
+    expect(lineAmount(3n, 500n)).toBe(2n);
+  });
+
+  it("applies a rate exactly above 2^53 minor units", () => {
+    // Not a realistic invoice — it is where a rewrite in `number` would first
+    // go silently wrong. 18% of 9007199254741008 paise is
+    // 1621295865853381.44, so 1621295865853381; the double path multiplies
+    // past 53 bits of mantissa and answers one paisa more.
+    expect(applyRate(9007199254741008n, 1800)).toBe(1621295865853381n);
+  });
+
+  it("keeps a total exact where a double would not represent it", () => {
+    expect(fromDecimalString("90071992547410.08")).toBe(9007199254741008n);
+    expect(toDecimalString(9007199254741008n)).toBe("90071992547410.08");
+  });
+});

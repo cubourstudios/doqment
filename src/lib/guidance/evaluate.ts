@@ -50,13 +50,34 @@ export function matchesConditions(
   const { project_type, value_band_min, client_relationship, client_country } =
     conditions;
 
-  if (Array.isArray(project_type) && !project_type.includes(input.projectType)) {
-    return false;
+  /*
+   * Conditions arrive from a `jsonb` column that is edited by UPDATE rather
+   * than by deploy, so a malformed rule is a routine event and must fail
+   * closed. Both checks below used to fail *open* — widening a narrow rule to
+   * every project instead of narrowing it — which is the expensive direction:
+   * an "essential" service agreement was shown on work it was never written
+   * for, and the rule still looked correct in the table.
+   */
+
+  // A bare string is one type, the way client_relationship and client_country
+  // already read one. Only an array was checked before, so a hand-typed
+  // `"project_type": "design"` skipped the branch entirely and applied design
+  // advice to writing, consulting and everything else.
+  if (project_type && project_type !== ANY) {
+    const allowed = Array.isArray(project_type) ? project_type : [project_type];
+    if (!allowed.includes(input.projectType)) return false;
   }
 
   // An inclusive floor: a rule from "50k_2l" also fires for everything above.
-  if (value_band_min && bandIndex(input.valueBand) < bandIndex(value_band_min)) {
-    return false;
+  if (value_band_min && value_band_min !== ANY) {
+    const floor = bandIndex(value_band_min);
+
+    // An unrecognised band is a broken rule, not an absent floor. Left at -1,
+    // `bandIndex(input) < -1` was never true, so a typo — "50k-2l" for
+    // "50k_2l", hyphens being what the UI labels use — turned the floor off
+    // and fired the rule for every project including the smallest.
+    if (floor === -1) return false;
+    if (bandIndex(input.valueBand) < floor) return false;
   }
 
   if (

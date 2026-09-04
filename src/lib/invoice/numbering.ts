@@ -118,10 +118,14 @@ export async function peekNextInvoiceNumber(
 export function seriesResetsOn(country: string | null): string {
   const { fiscalYearStartMonth } = getCountryConfig(country);
 
-  return fiscalYearStartMonth === 1
-    ? "1 January"
-    : new Date(2000, fiscalYearStartMonth - 1, 1).toLocaleDateString("en", {
-        day: "numeric",
-        month: "long",
-      });
+  // One shape for every country. The two branches disagreed: January was
+  // hardcoded as "1 January" while the rest came from en's month-first
+  // ordering as "April 1", so the same sentence read differently depending on
+  // where the user was. Built day-first explicitly rather than left to a
+  // locale, since the surrounding copy is written that way.
+  const month = new Date(
+    Date.UTC(2000, fiscalYearStartMonth - 1, 1),
+  ).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" });
+
+  return `1 ${month}`;
 }

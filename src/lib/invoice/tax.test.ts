@@ -317,3 +317,127 @@ describe("computeTax — who counts as foreign", () => {
     expect(result.components.map((c) => c.label)).toEqual(["CGST", "SGST"]);
   });
 });
+
+describe("computeTax — a supplier outside India", () => {
+  it("never splits into GST heads, even when both state codes are set", () => {
+    // A US freelancer has a state too, and it is not a GST state code. If the
+    // India branch leaked, a Californian invoice to a New York client would
+    // print "IGST" and be nonsense to both of them.
+    const result = computeTax({
+      ...base,
+      supplierCountry: "US",
+      supplierStateCode: "06",
+      clientCountry: "US",
+      clientStateCode: "36",
+      rateBasisPoints: 875,
+      taxableAmount: ONE_LAKH,
+    });
+
+    expect(result.components.map((c) => c.label)).toEqual(["Tax"]);
+    expect(result.components[0].rateBasisPoints).toBe(875);
+    // 8.75% of 100,000.00
+    expect(toDecimalString(result.total)).toBe("8750.00");
+  });
+
+  it("does not zero-rate a foreign client for a foreign supplier", () => {
+    // Zero-rating is India's export rule. A British supplier billing a French
+    // client still charges the rate they entered.
+    const result = computeTax({
+      ...base,
+      supplierCountry: "GB",
+      supplierStateCode: null,
+      clientCountry: "FR",
+      clientStateCode: null,
+      rateBasisPoints: 2000,
+      taxableAmount: ONE_LAKH,
+    });
+
+    expect(toDecimalString(result.total)).toBe("20000.00");
+    expect(result.note).toBeNull();
+  });
+
+  it("reads the supplier's country case-insensitively", () => {
+    // profiles.country is a varchar. An Indian supplier stored as "in" that
+    // fell through to the single-line branch would print one "Tax" row where
+    // the client's accountant needs CGST and SGST separately.
+    const result = computeTax({
+      ...base,
+      supplierCountry: "in",
+      taxableAmount: ONE_LAKH,
+    });
+
+    expect(result.components.map((c) => c.label)).toEqual(["CGST", "SGST"]);
+  });
+});
+
+describe("stateCodeFromGstin — length", () => {
+  it("rejects a GSTIN with an extra character", () => {
+    // A GSTIN is exactly 15 characters. Taking the first two digits of a
+    // mistyped one would put the invoice under a state the supplier is not
+    // registered in.
+    expect(stateCodeFromGstin("29ABCDE1234F1Z5X")).toBeNull();
+    expect(stateCodeFromGstin("29ABCDE1234F1Z")).toBeNull();
+  });
+});
+
+/**
+ * The stored breakdown is decimal strings rather than minor units precisely so
+ * that a reader does not divide by 100. A zero-decimal currency is where that
+ * choice pays off, and it was the only currency shape not covered.
+ */
+describe("tax breakdown serialisation — zero-decimal currency", () => {
+  const yen = computeTax({
+    ...base,
+    supplierCountry: "JP",
+    supplierStateCode: null,
+    clientCountry: "JP",
+    clientStateCode: null,
+    rateBasisPoints: 1000,
+    taxableAmount: 50000n,
+  });
+
+  it("writes yen with no decimal point", () => {
+    const json = taxBreakdownToJson(yen, "JPY");
+
+    // 10% of ¥50,000 = ¥5,000 — not "5000.00", which reads as ¥500,000 to
+    // anything that divides by 100.
+    expect(json.total).toBe("5000");
+    expect(json.components[0].amount).toBe("5000");
+  });
+
+  it("round-trips back to the same minor units", () => {
+    const restored = taxBreakdownFromJson(taxBreakdownToJson(yen, "JPY"), "JPY");
+
+    expect(restored.total).toBe(yen.total);
+    expect(restored.components).toEqual(yen.components);
+  });
+});
+
+describe("tax breakdown serialisation — a zero-rated export", () => {
+  const exported = computeTax({
+    ...base,
+    clientCountry: "US",
+    clientStateCode: null,
+    taxableAmount: ONE_LAKH,
+  });
+
+  it("keeps the note, which is the only thing the row carries", () => {
+    // Components are empty for an export, so the note is the entire stored
+    // breakdown. Losing it on the round trip drops the LUT declaration the
+    // invoice legally needs to show.
+    const restored = taxBreakdownFromJson(
+      JSON.parse(JSON.stringify(taxBreakdownToJson(exported, "INR"))),
+      "INR",
+    );
+
+    expect(restored.note).toBe(exported.note);
+    expect(restored.components).toEqual([]);
+    expect(restored.total).toBe(0n);
+  });
+
+  it("writes a zero total rather than an empty string", () => {
+    // The column is `numeric`; "" would fail the insert, and a missing key
+    // would read back as NaN.
+    expect(taxBreakdownToJson(exported, "INR").total).toBe("0.00");
+  });
+});

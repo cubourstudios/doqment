@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { calculateInvoice, InvoiceCalculationError } from "./calculate";
+import {
+  calculateInvoice,
+  InvoiceCalculationError,
+  totalsForStorage,
+} from "./calculate";
 import { toDecimalString } from "./money";
 
 const taxContext = {
@@ -167,5 +171,90 @@ describe("calculateInvoice", () => {
     });
 
     expect(toDecimalString(result.total, "JPY")).toBe("50000");
+  });
+});
+
+describe("a discount that cancels the invoice", () => {
+  /**
+   * Equal to the subtotal is allowed; only larger is rejected. A job written
+   * off in full is a real invoice a freelancer needs on record, and the
+   * boundary is one character away from refusing it.
+   */
+  const result = calc([{ description: "x", quantity: "1", unitPrice: "100" }], {
+    discount: "100",
+  });
+
+  it("leaves nothing to tax", () => {
+    expect(toDecimalString(result.taxableAmount)).toBe("0.00");
+    expect(result.tax.total).toBe(0n);
+  });
+
+  it("still records what was billed before the discount", () => {
+    expect(toDecimalString(result.subtotal)).toBe("100.00");
+    expect(toDecimalString(result.discount)).toBe("100.00");
+    expect(toDecimalString(result.total)).toBe("0.00");
+  });
+
+  it("rejects one paisa more", () => {
+    expect(() =>
+      calc([{ description: "x", quantity: "1", unitPrice: "100" }], {
+        discount: "100.01",
+      }),
+    ).toThrow(InvoiceCalculationError);
+  });
+});
+
+/**
+ * `subtotal` and `total` are two `numeric` columns on different bases: the
+ * subtotal is what was billed before the discount, the total is what is owed
+ * after discount and tax. Writing the same basis to both is the kind of error
+ * that makes every stored invoice quietly disagree with its own PDF.
+ */
+describe("totalsForStorage", () => {
+  it("stores the pre-discount subtotal and the payable total", () => {
+    const result = calc(
+      [{ description: "Design", quantity: "1", unitPrice: "100000" }],
+      { discount: "10000" },
+    );
+
+    // 1,00,000 billed; 90,000 after discount; 18% of that is 16,200.
+    expect(totalsForStorage(result, "INR")).toEqual({
+      subtotal: "100000.00",
+      total: "106200.00",
+    });
+  });
+
+  it("keeps the stored figures consistent with the parts", () => {
+    const result = calc(
+      [{ description: "Design", quantity: "1", unitPrice: "100000" }],
+      { discount: "10000" },
+    );
+
+    expect(result.subtotal - result.discount + result.tax.total).toBe(
+      result.total,
+    );
+  });
+
+  it("stores a zero-decimal currency without a fractional part", () => {
+    // The columns are `numeric`, so "50000.00" would survive the insert and
+    // read back as ¥50,000 only if every reader remembered to divide.
+    const result = calculateInvoice({
+      lineItems: [{ description: "Design", quantity: "1", unitPrice: "50000" }],
+      currency: "JPY",
+      tax: {
+        ...taxContext,
+        supplierCountry: "JP",
+        supplierStateCode: null,
+        clientCountry: "JP",
+        clientStateCode: null,
+        rateBasisPoints: 1000,
+      },
+    });
+
+    // 10% of ¥50,000 = ¥5,000.
+    expect(totalsForStorage(result, "JPY")).toEqual({
+      subtotal: "50000",
+      total: "55000",
+    });
   });
 });
