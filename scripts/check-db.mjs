@@ -53,10 +53,15 @@ if (!connectionString) {
   process.exit(1);
 }
 
+// postgres.js defaults to ssl:false and Supabase's pooler rejects plaintext
+// with (ESSLREQUIRED); an explicit sslmode in the URL still wins.
+const ssl = connectionString.includes("sslmode=") ? {} : { ssl: "require" };
+
 const sql = postgres(connectionString, {
   max: 1,
   prepare: false,
   onnotice: () => {},
+  ...ssl,
 });
 
 let problems = 0;

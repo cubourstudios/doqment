@@ -14,6 +14,13 @@ export default defineConfig({
   schemaFilter: ["public"],
   dbCredentials: {
     url: process.env.DIRECT_DATABASE_URL ?? "",
+    /*
+     * Requested explicitly, for the same reason src/db/index.ts does: the
+     * driver does not enable TLS on its own and Supabase's pooler rejects a
+     * plaintext connection, which would fail `db:migrate` — and a migration
+     * that cannot run is how a schema change silently never ships.
+     */
+    ssl: "require",
   },
   verbose: true,
   strict: true,

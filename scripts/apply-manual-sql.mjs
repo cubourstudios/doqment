@@ -29,7 +29,11 @@ if (!connectionString) {
   process.exit(1);
 }
 
-const sql = postgres(connectionString, { max: 1, onnotice: () => {} });
+// postgres.js defaults to ssl:false and Supabase's pooler rejects plaintext
+// with (ESSLREQUIRED); an explicit sslmode in the URL still wins.
+const ssl = connectionString.includes("sslmode=") ? {} : { ssl: "require" };
+
+const sql = postgres(connectionString, { max: 1, onnotice: () => {}, ...ssl });
 
 const files = readdirSync(MANUAL_DIR)
   .filter((f) => f.endsWith(".sql"))
