@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PRICING, PRO_FEATURES } from "@/lib/billing/pricing";
+import { limitsFor } from "@/lib/billing/plans";
 import { DoqmentMark } from "@/components/brand/logo";
 
 /**
@@ -63,11 +64,18 @@ const VALUE_PROPS = [
   },
 ];
 
+/**
+ * Read from plans.ts rather than retyped. This list said "3 projects" and "5
+ * documents a month" while the product enforced 2 and 3 — the landing page was
+ * the last screen still quoting numbers nobody enforced.
+ */
+const FREE_LIMITS = limitsFor("free");
+
 const FREE_FEATURES = [
-  "3 projects",
-  "5 documents a month",
-  "Every invoice feature",
-  "Your own files, 5 MB each",
+  `${FREE_LIMITS.maxDocumentsPerMonth} documents a month`,
+  `${FREE_LIMITS.maxProjects} active projects`,
+  "Every invoice feature, including GST",
+  `Your own files, ${Math.round(FREE_LIMITS.maxUploadBytes / 1024 / 1024)} MB each`,
 ];
 
 export default function LandingPage() {

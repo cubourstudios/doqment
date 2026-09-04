@@ -3,9 +3,8 @@ import Link from "next/link";
 import { ChevronLeftIcon } from "lucide-react";
 
 import { requireProfile } from "@/lib/auth";
-import { getAllowance, entitlementFor } from "@/lib/billing/allowance";
+import { entitlementFor, getAllowance } from "@/lib/billing/allowance";
 import { getUserPlan } from "@/lib/billing/plans";
-import { formatMinor } from "@/lib/invoice/money";
 import { DOC_TYPE_LABELS } from "@/lib/labels";
 import { docTypeEnum } from "@/db/schema";
 import type { DocType } from "@/lib/guidance/types";
@@ -34,11 +33,12 @@ const PURPOSE: Record<DocType, string> = {
  * be attached to one afterwards.
  */
 export default async function NewDocumentPage() {
-  const { userId, profile } = await requireProfile();
-  const currency = profile.currency ?? "INR";
+  const { userId } = await requireProfile();
 
-  // TODO(credits): mocked. See src/lib/billing/allowance.ts.
-  const allowance = getAllowance(await getUserPlan(userId), currency);
+  // Real usage, read the way the limit is enforced — the picker must not offer
+  // a document that the creation path will then refuse.
+  const allowance = await getAllowance(userId, await getUserPlan(userId));
+  const entitlement = entitlementFor(allowance);
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -54,14 +54,28 @@ export default async function NewDocumentPage() {
         Create a document
       </h1>
       <p className="text-muted-foreground mt-1 text-sm">
-        Pick a type. You can attach it to a project later, or never.
+        Pick a type, then choose the project it belongs to.
+      </p>
+
+      {/* Said once, up front, rather than per tile: the allowance is a property
+          of the month, not of the document type. */}
+      <p
+        className={`mt-3 text-sm ${entitlement.allowed ? "text-muted-foreground" : "text-destructive"}`}
+      >
+        {entitlement.reason}
+        {entitlement.allowed ? null : (
+          <>
+            {" "}
+            <Link href="/settings/billing" className="underline underline-offset-4">
+              Upgrade for unlimited
+            </Link>
+            .
+          </>
+        )}
       </p>
 
       <ul className="mt-6 grid gap-3 sm:grid-cols-2">
-        {docTypeEnum.enumValues.map((docType) => {
-          const entitlement = entitlementFor(docType, allowance);
-
-          return (
+        {docTypeEnum.enumValues.map((docType) => (
             <li key={docType} className="min-w-0">
               <Link
                 href={`/documents/new/${docType}`}
@@ -76,20 +90,9 @@ export default async function NewDocumentPage() {
                   </span>
                 </span>
 
-                {/*
-                  The price is stated on the way in, not at the end. Someone
-                  who would rather not pay should find that out before filling
-                  a form, not after.
-                */}
-                <span className="text-muted-foreground text-xs">
-                  {entitlement.cost > 0
-                    ? formatMinor(BigInt(entitlement.cost), currency)
-                    : entitlement.reason}
-                </span>
               </Link>
             </li>
-          );
-        })}
+        ))}
       </ul>
     </div>
   );

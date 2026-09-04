@@ -39,8 +39,7 @@ export default async function DashboardPage() {
     getRecentDocuments(userId),
   ]);
 
-  // TODO(credits): mocked. See src/lib/billing/allowance.ts.
-  const allowance = getAllowance(await getUserPlan(userId), currency);
+  const allowance = await getAllowance(userId, await getUserPlan(userId));
   const firstName = profile.name?.split(" ")[0];
 
   const nothingYet =

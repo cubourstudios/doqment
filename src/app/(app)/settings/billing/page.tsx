@@ -75,16 +75,20 @@ export default async function BillingPage({
 
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle>This month</CardTitle>
+          <CardTitle>Your usage</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
+          {/* Projects are a standing total, documents reset monthly. Filing
+              both under "This month" said something untrue about projects. */}
           <Usage
             label="Projects"
+            period="in total"
             used={usage.projects}
             limit={limits.maxProjects}
           />
           <Usage
             label="Documents"
+            period="this month"
             used={usage.documentsThisMonth}
             limit={limits.maxDocumentsPerMonth}
           />
@@ -139,10 +143,12 @@ export default async function BillingPage({
 
 function Usage({
   label,
+  period,
   used,
   limit,
 }: {
   label: string;
+  period: string;
   used: number;
   limit: number | null;
 }) {
@@ -168,7 +174,9 @@ function Usage({
               : "text-muted-foreground tabular-nums"
           }
         >
-          {used} of {limit}
+          {/* Clamped: a cap can be lowered under an existing account — Free
+              went from 5 documents to 3 — and "4 of 3" reads as a bug. */}
+          {Math.min(used, limit)} of {limit}
         </span>
       </div>
       <Progress
@@ -180,7 +188,7 @@ function Usage({
           from a few pixels. */}
       {atLimit ? (
         <p className="text-muted-foreground text-xs">
-          You&apos;ve used all of this month&apos;s {label.toLowerCase()}.
+          You&apos;ve used all {limit} {label.toLowerCase()} {period}.
         </p>
       ) : null}
     </div>
