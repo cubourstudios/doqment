@@ -27,8 +27,18 @@ export type Any = typeof ANY;
  * fires from "50k_2l" also fires for "2l_10l" and "above_10l".
  */
 export type RuleConditions = {
-  project_type?: ProjectType[] | Any;
-  value_band_min?: ValueBand;
+  /**
+   * One type or several. A bare string is accepted because these rows are
+   * hand-edited in SQL — `{"project_type": "design"}` is the natural thing to
+   * type, and it used to constrain nothing at all.
+   */
+  project_type?: ProjectType | ProjectType[] | Any;
+  /**
+   * Inclusive floor. `"*"` means no floor, so every condition here reads the
+   * same way — the other three already accepted the wildcard and this one
+   * silently did not.
+   */
+  value_band_min?: ValueBand | Any;
   client_relationship?: ClientRelationship | Any;
   client_country?: string | Any;
 };

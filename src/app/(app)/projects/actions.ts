@@ -13,6 +13,14 @@ import { track } from "@/lib/analytics";
 
 export type ProjectState = { error?: string };
 
+/**
+ * Thrown inside the creation transaction, caught below.
+ *
+ * A sentinel rather than a bare string comparison, so the catch cannot start
+ * swallowing an unrelated failure if the message is ever reworded.
+ */
+const CLIENT_NOT_FOUND = "client not found";
+
 export async function createProject(
   _prevState: ProjectState,
   formData: FormData,
@@ -51,56 +59,79 @@ export async function createProject(
     endDate,
   } = parsed.data;
 
-  const projectId = await db.transaction(async (tx) => {
-    let resolvedClientId = clientId || null;
+  let projectId: string;
 
-    // A name typed inline creates the client as part of the same transaction:
-    // a project that references a client row which failed to insert would be
-    // worse than failing outright.
-    if (!resolvedClientId && newClientName) {
-      const [created] = await tx
-        .insert(clients)
+  try {
+    projectId = await db.transaction(async (tx) => {
+      let resolvedClientId = clientId || null;
+
+      // A name typed inline creates the client as part of the same transaction:
+      // a project that references a client row which failed to insert would be
+      // worse than failing outright.
+      if (!resolvedClientId && newClientName) {
+        const [created] = await tx
+          .insert(clients)
+          .values({
+            userId,
+            name: newClientName,
+            // Default the client to the user's own country. Most freelance work
+            // is domestic, and the guidance engine needs a country to compare.
+            country: newClientCountry || profile.country,
+          })
+          .returning({ id: clients.id });
+
+        resolvedClientId = created.id;
+      } else if (resolvedClientId) {
+        // Verify the client belongs to this user before linking it. Without RLS
+        // on this connection, an id from a tampered form would otherwise attach
+        // someone else's client to this project.
+        const [owned] = await tx
+          .select({ id: clients.id })
+          .from(clients)
+          .where(
+            and(eq(clients.id, resolvedClientId), eq(clients.userId, userId)),
+          )
+          .limit(1);
+
+        if (!owned) throw new Error(CLIENT_NOT_FOUND);
+      }
+
+      const [project] = await tx
+        .insert(projects)
         .values({
           userId,
-          name: newClientName,
-          // Default the client to the user's own country. Most freelance work
-          // is domestic, and the guidance engine needs a country to compare.
-          country: newClientCountry || profile.country,
+          clientId: resolvedClientId,
+          title,
+          projectType,
+          valueBand,
+          startDate: startDate || null,
+          endDate: endDate || null,
         })
-        .returning({ id: clients.id });
+        .returning({ id: projects.id });
 
-      resolvedClientId = created.id;
-    } else if (resolvedClientId) {
-      // Verify the client belongs to this user before linking it. Without RLS
-      // on this connection, an id from a tampered form would otherwise attach
-      // someone else's client to this project.
-      const [owned] = await tx
-        .select({ id: clients.id })
-        .from(clients)
-        .where(
-          and(eq(clients.id, resolvedClientId), eq(clients.userId, userId)),
-        )
-        .limit(1);
-
-      if (!owned) throw new Error("client not found");
+      return project.id;
+    });
+  } catch (error) {
+    /*
+     * A client that no longer belongs to the user is an ordinary thing for a
+     * form to submit — deleted in another tab, or a page open since before it
+     * was removed, with the select still listing it. Thrown out of a server
+     * action it reached the user as Next's blank "a server error occurred"
+     * page with nothing but an opaque digest on it, taking everything they had
+     * typed with it. It is a message about one field, so it is returned as
+     * one.
+     */
+    if (error instanceof Error && error.message === CLIENT_NOT_FOUND) {
+      return {
+        error: "That client no longer exists. Pick another, or type a new name.",
+      };
     }
 
-    const [project] = await tx
-      .insert(projects)
-      .values({
-        userId,
-        clientId: resolvedClientId,
-        title,
-        projectType,
-        valueBand,
-        startDate: startDate || null,
-        endDate: endDate || null,
-      })
-      .returning({ id: projects.id });
+    throw error;
+  }
 
-    return project.id;
-  });
-
+  // Outside the try: redirect() and revalidatePath() work by throwing, and
+  // catching those here would turn a successful creation into an error.
   await track(userId, "project_created", { projectType, valueBand });
 
   revalidatePath("/projects");

@@ -1,4 +1,15 @@
-import { and, count, desc, eq, gte, isNull, lt, ne, or } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gte,
+  isNull,
+  lt,
+  ne,
+  notInArray,
+  or,
+} from "drizzle-orm";
 
 import { db } from "@/db";
 import { clients, documents, invoices, projects } from "@/db/schema";
@@ -203,6 +214,17 @@ export async function getMonthlyTotals(
       and(
         eq(invoices.userId, userId),
         isNull(documents.deletedAt),
+        /*
+         * A draft has not been invoiced to anyone and a cancelled invoice has
+         * been withdrawn, so neither is money raised. Without this the chart
+         * was the only place in the product that disagreed: it drew an unsent
+         * draft's full amount as invoiced while the Outstanding tile on the
+         * same screen read zero, and a cancelled invoice inflated its month
+         * permanently. documents/actions.ts states the rule the rest of the
+         * app follows — "a draft counts towards neither the outstanding total
+         * nor the overdue check".
+         */
+        notInArray(invoices.status, ["draft", "cancelled"]),
         // Either raised in the window or settled in it. Filtering on issue
         // date alone hid exactly the case the chart is for: an invoice raised
         // eight months ago and paid this month never reached the query, so

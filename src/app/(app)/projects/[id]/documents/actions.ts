@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -153,6 +153,11 @@ export async function createInvoice(
         eq(templates.isActive, true),
       ),
     )
+    // Newest active version wins: the unique key is (doc_type, region,
+    // version) and nothing limits a pair to one active row, so seeding a
+    // version 2 leaves version 1 active. Unordered, the form could be built
+    // from one version's schema and the document from another's body.
+    .orderBy(desc(templates.version))
     .limit(1);
 
   const issueDate = new Date(input.issueDate);

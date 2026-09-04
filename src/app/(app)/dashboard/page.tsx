@@ -42,10 +42,17 @@ export default async function DashboardPage() {
   const allowance = await getAllowance(userId, await getUserPlan(userId));
   const firstName = profile.name?.split(" ")[0];
 
+  // Documents count too. Without them this declared a brand-new account and
+  // hid the Recent documents section below — which lives in the else branch —
+  // for anyone who had generated a proposal or an NDA but had no invoice and
+  // no *active* project: completing or archiving the project was enough to
+  // make their documents vanish from the home screen. That is the regression
+  // getRecentDocuments was added to fix, reintroduced through the empty state.
   const nothingYet =
     data.outstanding.count === 0 &&
     data.activeProjects === 0 &&
-    data.recentInvoices.length === 0;
+    data.recentInvoices.length === 0 &&
+    recentDocuments.length === 0;
 
   return (
     <div className="mx-auto w-full max-w-3xl">

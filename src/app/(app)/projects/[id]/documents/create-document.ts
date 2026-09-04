@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -107,6 +107,11 @@ export async function createTemplateDocument(
         eq(templates.isActive, true),
       ),
     )
+    // Newest active version wins: the unique key is (doc_type, region,
+    // version) and nothing limits a pair to one active row, so seeding a
+    // version 2 leaves version 1 active. Unordered, the form could be built
+    // from one version's schema and the document from another's body.
+    .orderBy(desc(templates.version))
     .limit(1);
 
   if (!template) {
@@ -209,7 +214,11 @@ export async function createTemplateDocument(
     await tx
       .update(documents)
       .set({ currentVersionId: version.id })
-      .where(eq(documents.id, document.id));
+      // Carries the user filter even though the id came from the RETURNING
+      // three lines above: this connection bypasses row level security, and
+      // the rule is blanket precisely so no reader has to reason about
+      // whether a particular id is trustworthy.
+      .where(and(eq(documents.id, document.id), eq(documents.userId, userId)));
 
     return document.id;
   });
