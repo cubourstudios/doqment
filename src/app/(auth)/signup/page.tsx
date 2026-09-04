@@ -40,8 +40,6 @@ export default async function SignupPage() {
           </>
         ) : null}
 
-        <AuthDivider />
-
         <SignupForm />
 
         <p className="text-muted-foreground text-center text-base">

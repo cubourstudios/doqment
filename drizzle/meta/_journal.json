@@ -15,6 +15,13 @@
       "when": 1788449837179,
       "tag": "0001_damp_earthquake",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788509244948,
+      "tag": "0002_clammy_puma",
+      "breakpoints": true
     }
   ]
 }

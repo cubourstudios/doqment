@@ -27,7 +27,7 @@
  * against nothing — the pitch is "unlimited after about ten documents", not
  * "cheap". The annual plan is ten months at that rate.
  *
- * **International is priced higher, not converted.** $6/month is not ₹199 at
+ * **International is priced higher, not converted.** $6/month is not ₹299 at
  * any exchange rate, and it should not be — a US freelancer's alternative is
  * Bonsai or FreshBooks at $19-25/month, so $6 is already a sharp discount.
  * Charging Indian prices internationally leaves money on the table; charging

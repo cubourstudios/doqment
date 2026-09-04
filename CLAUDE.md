@@ -148,7 +148,7 @@ src/app/(app)/settings/billing/page.tsx
 ```
 
 ### Subscriptions
-1. Dashboard (test mode): four plans — INR ₹199/month and ₹1,999/year, USD $6/month and $60/year. The annual price is ten months, i.e. two months free. KYC is needed only to go live; International Payments is a separate activation needed only for the USD pair.
+1. Dashboard (test mode): four plans — INR ₹299/month and ₹2,990/year, USD $6/month and $60/year. The annual price is ten months, i.e. two months free. KYC is needed only to go live; International Payments is a separate activation needed only for the USD pair.
 2. Server action `createRazorpaySubscription({ userId, rail, interval })`: `razorpay.subscriptions.create({ plan_id, total_count, customer_notify: 1, notes: { user_id } })` → return `subscription_id`. `notes` is the only field that survives the round trip to the webhook.
 3. Client: open checkout.js with `{ key: NEXT_PUBLIC_RAZORPAY_KEY_ID, subscription_id, handler }`.
 4. **Do not trust the client handler for entitlement.** Truth comes from the webhook: handle `subscription.activated`, `subscription.charged`, `subscription.resumed` (extend `current_period_end`), and `subscription.halted`/`cancelled`/`completed`/`expired` (downgrade after 3-day grace). Verify `x-razorpay-signature` (HMAC-SHA256 of the raw body with `RAZORPAY_WEBHOOK_SECRET`) using `timingSafeEqual`, never `===`.

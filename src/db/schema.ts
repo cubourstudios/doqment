@@ -309,6 +309,11 @@ export const documents = pgTable(
   (t) => [
     index("documents_user_id_idx").on(t.userId),
     index("documents_project_id_idx").on(t.projectId),
+    // Covers the template_id foreign key. Postgres indexes the referenced side
+    // of a reference automatically but never the referencing side, so without
+    // this the RESTRICT check on a template delete is a sequential scan of
+    // every document in the table.
+    index("documents_template_id_idx").on(t.templateId),
   ],
 );
 
@@ -408,7 +413,13 @@ export const uploads = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (t) => [index("uploads_user_id_idx").on(t.userId)],
+  (t) => [
+    index("uploads_user_id_idx").on(t.userId),
+    // Covers the project_id foreign key. Deleting a project has to find and
+    // null every upload pointing at it, which without this scans the whole
+    // table — and deleting a project is something users actually do.
+    index("uploads_project_id_idx").on(t.projectId),
+  ],
 );
 
 /** Append-only evidence that the disclaimer was shown and accepted (PRD F11). */
@@ -427,7 +438,12 @@ export const disclaimerLogs = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (t) => [index("disclaimer_logs_user_id_idx").on(t.userId)],
+  (t) => [
+    index("disclaimer_logs_user_id_idx").on(t.userId),
+    // Covers the document_id foreign key, which account deletion walks when
+    // it cascades a user's documents away.
+    index("disclaimer_logs_document_id_idx").on(t.documentId),
+  ],
 );
 
 export const subscriptions = pgTable(

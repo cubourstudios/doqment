@@ -7,6 +7,15 @@
 --
 -- Adding a user-owned table? Add its policy here in the same commit.
 --
+-- Every comparison is against `(select auth.uid())`, not `auth.uid()`. The
+-- subselect is not noise: Postgres treats a bare `auth.uid()` in a policy as
+-- volatile and re-runs it for every candidate row, so listing a user's
+-- documents calls it once per row in the table. Wrapped in a subselect it is
+-- hoisted into an InitPlan and evaluated once per statement. Supabase's
+-- database linter flags the bare form (`auth_rls_initplan`) for exactly this
+-- reason, and the cost grows with the table — it is invisible on a seeded
+-- project and expensive on a real one.
+--
 -- Every policy is dropped before it is created so this file can be re-applied
 -- safely — `npm run db:setup` runs it on every deploy of the schema.
 
@@ -17,47 +26,47 @@
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own rows" ON profiles;
 CREATE POLICY "own rows" ON profiles
-  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  FOR ALL USING (user_id = (select auth.uid())) WITH CHECK (user_id = (select auth.uid()));
 
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own rows" ON clients;
 CREATE POLICY "own rows" ON clients
-  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  FOR ALL USING (user_id = (select auth.uid())) WITH CHECK (user_id = (select auth.uid()));
 
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own rows" ON projects;
 CREATE POLICY "own rows" ON projects
-  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  FOR ALL USING (user_id = (select auth.uid())) WITH CHECK (user_id = (select auth.uid()));
 
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own rows" ON documents;
 CREATE POLICY "own rows" ON documents
-  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  FOR ALL USING (user_id = (select auth.uid())) WITH CHECK (user_id = (select auth.uid()));
 
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own rows" ON invoices;
 CREATE POLICY "own rows" ON invoices
-  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  FOR ALL USING (user_id = (select auth.uid())) WITH CHECK (user_id = (select auth.uid()));
 
 ALTER TABLE invoice_counters ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own rows" ON invoice_counters;
 CREATE POLICY "own rows" ON invoice_counters
-  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  FOR ALL USING (user_id = (select auth.uid())) WITH CHECK (user_id = (select auth.uid()));
 
 ALTER TABLE uploads ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own rows" ON uploads;
 CREATE POLICY "own rows" ON uploads
-  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  FOR ALL USING (user_id = (select auth.uid())) WITH CHECK (user_id = (select auth.uid()));
 
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own rows" ON subscriptions;
 CREATE POLICY "own rows" ON subscriptions
-  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  FOR ALL USING (user_id = (select auth.uid())) WITH CHECK (user_id = (select auth.uid()));
 
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own rows" ON events;
 CREATE POLICY "own rows" ON events
-  FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  FOR ALL USING (user_id = (select auth.uid())) WITH CHECK (user_id = (select auth.uid()));
 
 -- ---------------------------------------------------------------------------
 -- Append-only tables: readable and insertable by the owner, never mutable.
@@ -67,10 +76,10 @@ CREATE POLICY "own rows" ON events
 ALTER TABLE disclaimer_logs ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "own rows read" ON disclaimer_logs;
 CREATE POLICY "own rows read" ON disclaimer_logs
-  FOR SELECT USING (user_id = auth.uid());
+  FOR SELECT USING (user_id = (select auth.uid()));
 DROP POLICY IF EXISTS "own rows insert" ON disclaimer_logs;
 CREATE POLICY "own rows insert" ON disclaimer_logs
-  FOR INSERT WITH CHECK (user_id = auth.uid());
+  FOR INSERT WITH CHECK (user_id = (select auth.uid()));
 
 -- document_versions has no user_id of its own; ownership is inherited from the
 -- parent document, so the policy joins back to it.
@@ -80,7 +89,7 @@ CREATE POLICY "own rows read" ON document_versions
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM documents d
-      WHERE d.id = document_versions.document_id AND d.user_id = auth.uid()
+      WHERE d.id = document_versions.document_id AND d.user_id = (select auth.uid())
     )
   );
 DROP POLICY IF EXISTS "own rows insert" ON document_versions;
@@ -88,7 +97,7 @@ CREATE POLICY "own rows insert" ON document_versions
   FOR INSERT WITH CHECK (
     EXISTS (
       SELECT 1 FROM documents d
-      WHERE d.id = document_versions.document_id AND d.user_id = auth.uid()
+      WHERE d.id = document_versions.document_id AND d.user_id = (select auth.uid())
     )
   );
 
