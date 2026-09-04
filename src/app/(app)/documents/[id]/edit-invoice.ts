@@ -21,8 +21,35 @@ import {
 import { toDecimalString } from "@/lib/invoice/money";
 import { stateCodeFromGstin, taxBreakdownToJson } from "@/lib/invoice/tax";
 import { invoiceSchema } from "@/lib/schemas/invoice";
+import { LIMITS, rateLimit } from "@/lib/rate-limit";
 
 export type EditState = { error?: string };
+
+/**
+ * The client as an invoice records them.
+ *
+ * The version snapshot's shape rather than the `clients` table's, because the
+ * snapshot is what an edit has to be able to carry across — the invoice states
+ * who it was issued to, and that answer does not change because the row behind
+ * it has since been edited or unlinked.
+ */
+type InvoiceClient = {
+  name: string;
+  company: string | null;
+  taxId: string | null;
+  country: string | null;
+  address: unknown;
+};
+
+function clientFromRow(row: typeof clients.$inferSelect): InvoiceClient {
+  return {
+    name: row.name,
+    company: row.company,
+    taxId: row.taxId,
+    country: row.country,
+    address: row.addressJson,
+  };
+}
 
 /**
  * Edit a draft invoice.
@@ -48,6 +75,18 @@ export async function updateInvoice(
   formData: FormData,
 ): Promise<EditState> {
   const { userId, profile } = await requireProfile();
+
+  // Throttled on the same budget as creating one: an edit writes a new version
+  // row every time, so an unthrottled retry loop grows the history without
+  // bound. Keyed by user, who is authenticated here.
+  const limited = rateLimit(
+    `generate:${userId}`,
+    LIMITS.generate.limit,
+    LIMITS.generate.windowSeconds,
+  );
+  if (!limited.allowed) {
+    return { error: "Too many changes just now. Try again in a few minutes." };
+  }
 
   const descriptions = formData.getAll("lineDescription").map(String);
   const quantities = formData.getAll("lineQuantity").map(String);
@@ -78,10 +117,17 @@ export async function updateInvoice(
     .select({
       document: documents,
       invoice: invoices,
-      client: clients,
+      // The current snapshot, for the details an edit carries across rather
+      // than re-derives — see the client resolution below.
+      version: documentVersions,
+      projectClient: clients,
     })
     .from(documents)
     .innerJoin(invoices, eq(invoices.documentId, documents.id))
+    .leftJoin(
+      documentVersions,
+      eq(documents.currentVersionId, documentVersions.id),
+    )
     .leftJoin(projects, eq(documents.projectId, projects.id))
     .leftJoin(clients, eq(projects.clientId, clients.id))
     .where(and(eq(documents.id, documentId), eq(documents.userId, userId)))
@@ -96,7 +142,45 @@ export async function updateInvoice(
     };
   }
 
-  const { client } = existing;
+  /*
+   * Which client this invoice is for.
+   *
+   * The project's client was the answer here, and it is only the last resort.
+   * createInvoice honours an explicit clientId and files the invoice against
+   * that client, so re-deriving it from the project on every edit silently
+   * reassigned the invoice to someone else — and the client is not decoration:
+   * their country and state are what decide whether the tax comes out as
+   * CGST+SGST, as IGST, or as a zero-rated export. Correcting a typo in a line
+   * description could therefore reprice a zero-rated export invoice at 18%
+   * GST, which is real money to a real freelancer and looks entirely correct
+   * on the PDF that results.
+   *
+   * So: an explicitly chosen client wins, then whatever the invoice already
+   * says — this is the same invoice corrected, and the client carries across
+   * the way the number and series do — then, failing both, the project's.
+   */
+  const storedClient =
+    (existing.version?.dataJson as { client?: InvoiceClient | null } | null)
+      ?.client ?? null;
+
+  let client: InvoiceClient | null = null;
+
+  if (input.clientId) {
+    // Filtered by user as well as id: this connection bypasses row level
+    // security, so an id alone would read another account's client.
+    const [chosen] = await db
+      .select()
+      .from(clients)
+      .where(and(eq(clients.id, input.clientId), eq(clients.userId, userId)))
+      .limit(1);
+
+    if (chosen) client = clientFromRow(chosen);
+  }
+
+  client ??=
+    storedClient ??
+    (existing.projectClient ? clientFromRow(existing.projectClient) : null);
+
   const country = getCountryConfig(profile.country);
   // The currency is the one the invoice was issued in. Re-deriving it from the
   // profile would silently redenominate an invoice if the user later changed
@@ -128,7 +212,10 @@ export async function updateInvoice(
 
   await db.transaction(async (tx) => {
     const [latest] = await tx
-      .select({ versionNo: documentVersions.versionNo })
+      .select({
+        versionNo: documentVersions.versionNo,
+        templateVersion: documentVersions.templateVersion,
+      })
       .from(documentVersions)
       .where(eq(documentVersions.documentId, documentId))
       .orderBy(desc(documentVersions.versionNo))
@@ -139,7 +226,12 @@ export async function updateInvoice(
       .values({
         documentId,
         versionNo: (latest?.versionNo ?? 0) + 1,
-        templateVersion: 1,
+        // Carried from the version being corrected, not reset to 1. This
+        // column records which template revision rendered the document, and
+        // hardcoding it made every edited invoice claim it was drawn by the
+        // very first template — which is the one thing that would matter if a
+        // template revision ever turned out to be wrong.
+        templateVersion: latest?.templateVersion ?? 1,
         dataJson: {
           // The number and series are carried across untouched: this is the
           // same invoice, corrected.
@@ -164,15 +256,8 @@ export async function updateInvoice(
             taxId: profile.taxId,
             address: profile.addressJson,
           },
-          client: client
-            ? {
-                name: client.name,
-                company: client.company,
-                taxId: client.taxId,
-                country: client.country,
-                address: client.addressJson,
-              }
-            : null,
+          // Already in the snapshot's shape, resolved above.
+          client,
         },
       })
       .returning({ id: documentVersions.id });

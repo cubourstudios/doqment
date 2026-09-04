@@ -114,3 +114,41 @@ describe("dueDate", () => {
     expect(withDueDate("2026-13-45").success).toBe(false);
   });
 });
+
+/**
+ * The place of supply decides CGST+SGST against IGST, and it is compared
+ * against the supplier's two-digit code with a plain `!==`. A loose check here
+ * let "9" through, which never matches the "09" stateCodeFromGstin derives, so
+ * an intra-state supply came out as IGST — tax under the wrong head, which the
+ * client's accountant cannot claim, on an invoice that looks correct.
+ *
+ * The form never submits this field, so anything in it is hand-crafted.
+ */
+describe("placeOfSupply", () => {
+  it("accepts a two-digit state code", () => {
+    for (const code of ["09", "24", "27", "07"]) {
+      const parsed = invoiceSchema.safeParse({ ...valid, placeOfSupply: code });
+      expect(parsed.success, code).toBe(true);
+    }
+  });
+
+  it("accepts an absent or empty value, which means 'use the client's state'", () => {
+    expect(invoiceSchema.safeParse(valid).success).toBe(true);
+    expect(
+      invoiceSchema.safeParse({ ...valid, placeOfSupply: "" }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a single digit, which silently forced IGST", () => {
+    expect(
+      invoiceSchema.safeParse({ ...valid, placeOfSupply: "9" }).success,
+    ).toBe(false);
+  });
+
+  it("rejects anything that is not two digits", () => {
+    for (const code of ["ab", "0", "123", "0a", " 9", "-1"]) {
+      const parsed = invoiceSchema.safeParse({ ...valid, placeOfSupply: code });
+      expect(parsed.success, code).toBe(false);
+    }
+  });
+});
