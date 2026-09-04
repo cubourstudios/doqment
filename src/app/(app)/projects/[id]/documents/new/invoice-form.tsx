@@ -15,7 +15,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SubmitButton } from "@/components/auth/submit-button";
+import Link from "next/link";
+
 import { calculateInvoice } from "@/lib/invoice/calculate";
+import { getCountryConfig } from "@/lib/regions";
 import { formatMinor } from "@/lib/invoice/money";
 import { GST_RATES } from "@/lib/schemas/invoice";
 import { addDays } from "@/lib/invoice/round-trip";
@@ -315,6 +318,7 @@ export function InvoiceForm({
             name="taxRateBasisPoints"
             value={String(rate)}
             onValueChange={(v) => setRate(Number(v))}
+            disabled={!context.registered}
           >
             <SelectTrigger id="taxRateBasisPoints" className="w-full">
               <SelectValue />
@@ -327,6 +331,24 @@ export function InvoiceForm({
               ))}
             </SelectContent>
           </Select>
+
+          {/*
+            Without a tax registration number computeTax charges nothing —
+            correctly, since an unregistered freelancer must not collect GST.
+            But the control still accepted a rate and then changed no figure on
+            the screen, which reads as a broken form and, worse, lets someone
+            send an invoice believing tax was on it. Say why instead.
+          */}
+          {!context.registered ? (
+            <p className="text-muted-foreground text-sm">
+              You have no {getCountryConfig(context.supplierCountry).taxIdLabel ?? "tax registration number"}{" "}
+              saved, so this invoice cannot charge tax.{" "}
+              <Link href="/settings" className="underline underline-offset-4">
+                Add it in settings
+              </Link>{" "}
+              first.
+            </p>
+          ) : null}
         </div>
       </div>
 
