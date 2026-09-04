@@ -9,7 +9,15 @@ import { requireUser } from "@/lib/auth";
 import { onboardingSchema } from "@/lib/schemas/onboarding";
 import { getCountryConfig } from "@/lib/regions";
 
-export type ProfileState = { error?: string; saved?: boolean };
+/**
+ * `savedAt` rather than a `saved` boolean.
+ *
+ * useActionState hands back a fresh object each submit, but a boolean that is
+ * already true is not a *change*, so a useEffect keyed on it never fires
+ * again: the first save confirmed, every save after it wrote to the database
+ * in silence and the form looked inert. A timestamp differs on every success.
+ */
+export type ProfileState = { error?: string; savedAt?: number };
 
 /**
  * Settings reuses the onboarding schema: the fields are the same, and keeping
@@ -69,5 +77,5 @@ export async function updateProfile(
   revalidatePath("/settings");
   revalidatePath("/", "layout");
 
-  return { saved: true };
+  return { savedAt: Date.now() };
 }

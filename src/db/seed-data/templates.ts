@@ -244,7 +244,7 @@ function proposal(region: Region): SeedTemplate {
         { id: "deliverables", heading: "Deliverables", text: "{{deliverables}}" },
         { id: "timeline", heading: "Timeline", text: "{{timeline}}" },
         { id: "fee", heading: "Fee", text: "{{fee}}\n\n{{payment_terms}}" },
-        { id: "validity", text: "This proposal is valid until {{valid_until}}." },
+        { id: "validity", text: "{{#valid_until}}This proposal is valid until {{valid_until}}.{{/valid_until}}" },
       ],
     },
   };
@@ -274,6 +274,11 @@ function serviceAgreement(region: Region): SeedTemplate {
           label: "Client owns the work on full payment",
           type: "checkbox",
           help: "Tying the IP transfer to payment is the strongest leverage a freelancer has.",
+          // Ticked, for the reason types.ts sets out beside `default`: help text
+          // recommending something beside an unticked box is the product
+          // declining to take its own advice. Left off, the shipped service
+          // agreement said nothing at all about who owns the work.
+          default: true,
         },
         { name: "termination_notice", label: "Notice period for termination (days)", type: "number" },
         GOVERNING_LAW[region],
@@ -287,14 +292,14 @@ function serviceAgreement(region: Region): SeedTemplate {
           text: "This agreement is made on {{effective_date}} between {{provider_name}} (\"the Service Provider\") and {{client_name}} (\"the Client\").",
         },
         { id: "services", heading: "1. Services", text: "The Service Provider will provide the following services: {{services}}" },
-        { id: "fees", heading: "2. Fees and payment", text: "The Client will pay {{fee}}. {{payment_terms}} Overdue amounts carry interest at {{late_fee}}% per month." },
+        { id: "fees", heading: "2. Fees and payment", text: "The Client will pay {{fee}}. {{payment_terms}}{{#late_fee}} Overdue amounts carry interest at {{late_fee}}% per month.{{/late_fee}}" },
         {
           id: "ip",
           heading: "3. Intellectual property",
           text: "{{#ip_transfer}}All rights in the delivered work transfer to the Client upon receipt of payment in full. Until then, the Service Provider retains all rights.{{/ip_transfer}}",
         },
         { id: "confidentiality", heading: "4. Confidentiality", text: "Each party will keep the other's non-public information confidential and use it only for this engagement." },
-        { id: "termination", heading: "5. Termination", text: "Either party may terminate this agreement on {{termination_notice}} days' written notice. The Client remains liable for work completed up to the termination date." },
+        { id: "termination", heading: "5. Termination", text: "{{#termination_notice}}Either party may terminate this agreement on {{termination_notice}} days' written notice. {{/termination_notice}}The Client remains liable for work completed up to the termination date." },
         { id: "liability", heading: "6. Limitation of liability", text: "Neither party is liable for indirect or consequential loss. The Service Provider's total liability is limited to the fees paid under this agreement." },
         { id: "law", heading: "7. Governing law", text: "This agreement is governed by {{governing_law}}." },
         { id: "signatures", text: "Signed for the Service Provider: ______________________\n\nSigned for the Client: ______________________" },

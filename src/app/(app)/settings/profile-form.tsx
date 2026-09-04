@@ -46,8 +46,8 @@ export function ProfileForm({
   const config = getCountryConfig(country);
 
   useEffect(() => {
-    if (state.saved) toast.success("Saved");
-  }, [state.saved]);
+    if (state.savedAt) toast.success("Saved");
+  }, [state.savedAt]);
 
   return (
     <form action={formAction} className="grid gap-5">

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { calendarDate, optionalCalendarDate } from "./calendar-date";
+
 /**
  * Invoice form input.
  *
@@ -17,22 +19,6 @@ const quantityString = z
   .string()
   .trim()
   .refine((v) => /^[\d,]+(\.\d+)?$/.test(v), "Enter a quantity like 1 or 1.5");
-
-/**
- * A calendar date as the date input submits it.
- *
- * Checked here rather than left to Postgres: the issue date also decides the
- * invoice series, and `new Date("nonsense")` yields an Invalid Date that
- * formats as the series "FYNaN-NaN" on its way to a database error the user
- * sees as a 500.
- */
-const calendarDate = z
-  .string()
-  .trim()
-  .refine(
-    (v) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`)),
-    "Enter a date like 2026-09-03",
-  );
 
 export const lineItemSchema = z.object({
   description: z.string().trim().min(1, "Describe what this line is for").max(500),
@@ -53,7 +39,7 @@ const ALLOWED_TAX_RATES: readonly number[] = GST_RATES.map((rate) => rate.value)
 export const invoiceSchema = z.object({
   clientId: z.string().uuid().optional().or(z.literal("")),
   issueDate: calendarDate,
-  dueDate: calendarDate.optional().or(z.literal("")),
+  dueDate: optionalCalendarDate,
   lineItems: z.array(lineItemSchema).min(1, "Add at least one line item"),
   discount: amountString.optional().or(z.literal("")),
   notes: z.string().max(2000).optional().or(z.literal("")),

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { ChevronLeftIcon } from "lucide-react";
 
 import { db } from "@/db";
@@ -139,6 +139,11 @@ export default async function NewDocumentPage({
         eq(templates.isActive, true),
       ),
     )
+    // Newest active version wins: the unique key is (doc_type, region,
+    // version) and nothing limits a pair to one active row, so seeding a
+    // version 2 leaves version 1 active. Unordered, the form could be built
+    // from one version's schema and the document from another's body.
+    .orderBy(desc(templates.version))
     .limit(1);
 
   if (!template) {
