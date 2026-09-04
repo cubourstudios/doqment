@@ -53,9 +53,22 @@ if (!connectionString) {
   process.exit(1);
 }
 
+/*
+ * Mirrors src/db/connection.ts, which this plain .mjs script cannot import.
+ * Supabase's pooler refuses unencrypted connections and postgres.js does not
+ * negotiate TLS unless asked, so a check that omitted this would connect
+ * differently from the app — and report healthy against a connection the app
+ * cannot make. An explicit sslmode in the URL is left alone, as is a local
+ * database, which has no TLS to require.
+ */
+const needsSsl =
+  !/[?&]sslmode=/i.test(connectionString) &&
+  !/@(?:localhost|127\.0\.0\.1|\[::1\])[:/]/i.test(connectionString);
+
 const sql = postgres(connectionString, {
   max: 1,
   prepare: false,
+  ...(needsSsl ? { ssl: "require" } : {}),
   onnotice: () => {},
 });
 
