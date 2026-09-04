@@ -65,6 +65,28 @@ describe("pricing", () => {
    * drifts is worse than no checker at all — it would confidently approve a
    * plan priced to the old figures — so the copy is pinned here.
    */
+  /*
+   * The plan-creation script sends these amounts to Razorpay, and a plan's
+   * amount cannot be edited afterwards. A drifted number here does not fail
+   * loudly — it creates a plan that charges the wrong price, permanently.
+   */
+  it("keeps the plan-creation script in step", () => {
+    const script = readFileSync("scripts/setup-razorpay-plans.mjs", "utf8");
+
+    const entries = [...script.matchAll(/\{ envKey: "([A-Z_]+)".*?amountMinor: ([0-9_]+).*?\}/g)];
+    expect(entries.length).toBe(2);
+
+    const expectations = new Map(
+      entries.map((match) => [match[1], Number(match[2].replace(/_/g, ""))]),
+    );
+
+    // Only the INR pair is created by the script; the USD plans need
+    // International Payments activated first.
+    for (const option of [PRICING.inr.monthly, PRICING.inr.annual]) {
+      expect(expectations.get(option.envKey)).toBe(option.amountMinor);
+    }
+  });
+
   it("keeps the razorpay checker's expectations in step", () => {
     const script = readFileSync("scripts/check-razorpay.mjs", "utf8");
 

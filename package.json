@@ -21,7 +21,8 @@
     "db:setup": "npm run env:check && npm run db:migrate && npm run db:manual && npm run db:seed && npm run db:check",
     "setup": "node scripts/setup-env.mjs",
     "env:check": "node scripts/check-env.mjs",
-    "razorpay:check": "node --env-file-if-exists=.env.local scripts/check-razorpay.mjs"
+    "razorpay:check": "node --env-file-if-exists=.env.local scripts/check-razorpay.mjs",
+    "razorpay:plans": "node --env-file-if-exists=.env.local scripts/setup-razorpay-plans.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

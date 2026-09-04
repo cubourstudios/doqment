@@ -105,8 +105,18 @@ can be built and exercised before the account is live.
 
 ### 1. Create the plans
 
-Razorpay dashboard → Subscriptions → Plans. A plan fixes its currency when it
-is created, so each currency needs its own pair:
+```bash
+npm run razorpay:plans
+```
+
+Creates them from `src/lib/billing/pricing.ts`, so the amount charged cannot
+disagree with the amount advertised. It reuses a plan that already matches
+rather than duplicating, and refuses to run against live credentials without
+`--live`. It prints the env lines to paste.
+
+To do it by hand instead — Razorpay dashboard → Subscriptions → Plans. A plan
+fixes its currency and amount when it is created, so each currency needs its
+own pair, and repricing means creating new plans rather than editing:
 
 | Plan | Currency | Amount | Period |
 |---|---|---|---|
