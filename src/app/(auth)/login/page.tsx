@@ -53,8 +53,6 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           </>
         ) : null}
 
-        <AuthDivider />
-
         <LoginForm next={next} />
 
         <p className="text-muted-foreground text-center text-base">
