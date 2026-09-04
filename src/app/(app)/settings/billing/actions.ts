@@ -53,6 +53,28 @@ export async function startSubscription(
     return { razorpay: session };
   } catch (error) {
     console.error("failed to start subscription", error);
+
+    /*
+     * "Try again in a moment" was returned for every failure, including the
+     * one where trying again can never work. A rejected API key answers 401,
+     * and the user — who is at this moment trying to give us money — retries
+     * indefinitely against a wall, told each time that the problem is
+     * momentary.
+     *
+     * A credential our side owns is not the customer's problem to retry, so it
+     * is named as ours and the invitation to retry is withdrawn.
+     */
+    const statusCode = (error as { statusCode?: number })?.statusCode;
+
+    if (statusCode === 401 || statusCode === 403) {
+      return {
+        error:
+          "Payments aren't working right now — that's a fault on our side, " +
+          "not with your card, and you haven't been charged. We've been " +
+          "alerted. Everything on the free plan keeps working meanwhile.",
+      };
+    }
+
     return { error: "Couldn't start the checkout. Try again in a moment." };
   }
 }
