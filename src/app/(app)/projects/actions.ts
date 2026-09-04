@@ -8,6 +8,8 @@ import { db } from "@/db";
 import { clients, projects } from "@/db/schema";
 import { requireProfile, requireUser } from "@/lib/auth";
 import { projectSchema, projectUpdateSchema } from "@/lib/schemas/project";
+import { canCreateProject, getUserPlan } from "@/lib/billing/plans";
+import { track } from "@/lib/analytics";
 
 export type ProjectState = { error?: string };
 
@@ -16,6 +18,12 @@ export async function createProject(
   formData: FormData,
 ): Promise<ProjectState> {
   const { userId, profile } = await requireProfile();
+
+  // Checked before doing any work, so a blocked user is told why rather than
+  // watching a form fail after they filled it in.
+  const plan = await getUserPlan(userId);
+  const entitlement = await canCreateProject(userId, plan);
+  if (!entitlement.allowed) return { error: entitlement.reason };
 
   const parsed = projectSchema.safeParse({
     title: formData.get("title"),
@@ -92,6 +100,8 @@ export async function createProject(
 
     return project.id;
   });
+
+  await track(userId, "project_created", { projectType, valueBand });
 
   revalidatePath("/projects");
   revalidatePath("/dashboard");

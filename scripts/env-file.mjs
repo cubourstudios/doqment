@@ -64,15 +64,19 @@ DATABASE_URL=${get("DATABASE_URL")}
 # Port 5432 — used by drizzle-kit for migrations.
 DIRECT_DATABASE_URL=${get("DIRECT_DATABASE_URL")}
 
-# --- Payments (not needed until the billing phase) --------------------------
+# --- Razorpay (not needed until the billing phase) --------------------------
 
 RAZORPAY_KEY_ID=${get("RAZORPAY_KEY_ID")}
 RAZORPAY_KEY_SECRET=${get("RAZORPAY_KEY_SECRET")}
 RAZORPAY_WEBHOOK_SECRET=${get("RAZORPAY_WEBHOOK_SECRET")}
 NEXT_PUBLIC_RAZORPAY_KEY_ID=${get("NEXT_PUBLIC_RAZORPAY_KEY_ID")}
-STRIPE_SECRET_KEY=${get("STRIPE_SECRET_KEY")}
-STRIPE_WEBHOOK_SECRET=${get("STRIPE_WEBHOOK_SECRET")}
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${get("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY")}
+
+# Razorpay plan ids. A plan fixes its currency, so INR and USD need their own.
+# The USD pair also needs International Payments enabled on the account.
+RAZORPAY_PLAN_ID_MONTHLY=${get("RAZORPAY_PLAN_ID_MONTHLY")}
+RAZORPAY_PLAN_ID_ANNUAL=${get("RAZORPAY_PLAN_ID_ANNUAL")}
+RAZORPAY_PLAN_ID_MONTHLY_USD=${get("RAZORPAY_PLAN_ID_MONTHLY_USD")}
+RAZORPAY_PLAN_ID_ANNUAL_USD=${get("RAZORPAY_PLAN_ID_ANNUAL_USD")}
 
 # --- App --------------------------------------------------------------------
 

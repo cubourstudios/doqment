@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 289.89 69.43">
+  <defs>
+    <style>
+      .cls-1 {
+        font-family: Afacad-SemiBold, Afacad;
+        font-size: 54.91px;
+        font-weight: 600;
+      }
+
+      .cls-2 {
+        fill: #0140ff;
+      }
+    </style>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g>
+      <text class="cls-1" transform="translate(94.7 48.58)"><tspan x="0" y="0">Doqment</tspan></text>
+      <g>
+        <polygon points="71.28 64.68 73.23 64.68 73.23 69.43 74.53 69.43 74.53 64.68 76.46 64.68 76.46 63.5 71.28 63.5 71.28 64.68"/>
+        <polygon points="82.99 63.5 81.02 67.55 80.97 67.55 79.15 63.5 77.34 63.5 77.34 69.43 78.67 69.43 78.67 66.57 78.59 65.62 78.64 65.62 80.47 69.43 81.47 69.43 83.37 65.62 83.42 65.62 83.37 66.57 83.37 69.43 84.67 69.43 84.67 63.5 82.99 63.5"/>
+      </g>
+      <polygon class="cls-2" points="34.79 0 0 0 0 69.43 69.67 69.43 69.67 35.09 34.79 0"/>
+    </g>
+  </g>
+</svg>

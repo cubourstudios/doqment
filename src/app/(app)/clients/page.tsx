@@ -24,7 +24,7 @@ export default async function ClientsPage() {
     <div className="mx-auto w-full max-w-3xl">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
-        <Button asChild size="sm">
+        <Button asChild size="sm" className="min-h-11">
           <Link href="/clients/new">
             <PlusIcon />
             New

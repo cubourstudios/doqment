@@ -32,7 +32,7 @@ export default async function ProjectsPage() {
     <div className="mx-auto w-full max-w-3xl">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-        <Button asChild size="sm">
+        <Button asChild size="sm" className="min-h-11">
           <Link href="/projects/new">
             <PlusIcon />
             New
@@ -54,7 +54,10 @@ export default async function ProjectsPage() {
       ) : (
         <ul className="mt-6 grid gap-2">
           {rows.map((project) => (
-            <li key={project.id}>
+            // min-w-0: a grid item's automatic minimum is its content width,
+            // so a long project title beside a shrink-0 status badge pushed the
+            // row 31px past its container and scrolled the page at 360.
+            <li key={project.id} className="min-w-0">
               <Link
                 href={`/projects/${project.id}`}
                 className="hover:bg-accent flex min-h-16 items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors"

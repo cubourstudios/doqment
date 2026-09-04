@@ -5,8 +5,9 @@ import { and, eq } from "drizzle-orm";
 import { ChevronLeftIcon, PencilIcon } from "lucide-react";
 
 import { db } from "@/db";
-import { clients, projects } from "@/db/schema";
+import { clients, projects, uploads } from "@/db/schema";
 import { requireProfile } from "@/lib/auth";
+import { getUserPlan, limitsFor } from "@/lib/billing/plans";
 import { getCountryConfig } from "@/lib/regions";
 import {
   PROJECT_STATUS_LABELS,
@@ -23,6 +24,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DocumentChecklist } from "@/components/app/document-checklist";
+import { ProjectUploads } from "@/components/app/project-uploads";
+import { createSignedUrl } from "@/lib/storage";
 
 import { DeleteProjectButton } from "./delete-project-button";
 
@@ -48,11 +51,24 @@ export default async function ProjectPage({
 
   const { project, client } = row;
 
-  const checklist = await getProjectChecklist(
-    userId,
-    profile.country,
-    project,
-    client?.country ?? null,
+  const [checklist, uploadRows] = await Promise.all([
+    getProjectChecklist(userId, profile.country, project, client?.country ?? null),
+    db
+      .select()
+      .from(uploads)
+      .where(and(eq(uploads.projectId, project.id), eq(uploads.userId, userId))),
+  ]);
+
+  // Signed URLs are minted per request and expire in an hour, so a link copied
+  // out of the page stops working rather than becoming a permanent public
+  // handle on someone's contract.
+  const uploadsWithUrls = await Promise.all(
+    uploadRows.map(async (upload) => ({
+      id: upload.id,
+      fileName: upload.fileName,
+      size: upload.size,
+      signedUrl: await createSignedUrl("uploads", upload.filePath),
+    })),
   );
 
   return (
@@ -132,6 +148,18 @@ export default async function ProjectPage({
           ) : null}
         </CardContent>
       </Card>
+
+      <section className="mt-8">
+        <h2 className="mb-1 font-semibold">Your own files</h2>
+        <p className="text-muted-foreground mb-3 text-sm">
+          Anything already signed or sent elsewhere — keep it with the project.
+        </p>
+        <ProjectUploads
+          projectId={project.id}
+          uploads={uploadsWithUrls}
+          maxUploadBytes={limitsFor(await getUserPlan(userId)).maxUploadBytes}
+        />
+      </section>
 
       <div className="mt-10">
         <DeleteProjectButton

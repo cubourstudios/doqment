@@ -358,10 +358,13 @@ function nda(region: Region): SeedTemplate {
           name: "mutual",
           label: "Mutual (both sides share confidential information)",
           type: "checkbox",
+          // The help says "usually yes", so the default says yes too. Advising
+          // one thing and defaulting to the other is the product hedging.
+          default: true,
           help: "Usually yes. You will share your methods and pricing as surely as they share their plans.",
         },
         { name: "purpose", label: "Purpose of disclosure", type: "textarea", required: true },
-        { name: "term_years", label: "Confidentiality period (years)", type: "number", required: true },
+        { name: "term_years", label: "Confidentiality period (years)", type: "number", required: true, default: "3", help: "Three years is the usual term for freelance work. Five or more is unusual outside deep technical secrets." },
         GOVERNING_LAW[region],
       ],
     },
@@ -390,6 +393,9 @@ function paymentReminder(region: Region): SeedTemplate {
     schema: {
       fields: [
         { name: "client_name", label: "Client name", type: "text", required: true, prefill: "client.name" },
+        // The reminder signs off with the sender's name, so the form has to
+        // ask for it. Without this field the sign-off renders as a gap.
+        { name: "provider_name", label: "Your name / business name", type: "text", required: true, prefill: "profile.businessName" },
         { name: "invoice_number", label: "Invoice number", type: "text", required: true },
         { name: "invoice_date", label: "Invoice date", type: "date", required: true },
         { name: "due_date", label: "Was due on", type: "date", required: true },

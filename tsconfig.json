@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    // ES2020 or later is required for BigInt literals, which the invoice money
+    // arithmetic depends on — see src/lib/invoice/money.ts. Every browser and
+    // Node version this app supports has had BigInt for years.
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,

@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
+import { AuthLink } from "@/app/(auth)/auth-link";
 
 import { ForgotPasswordForm } from "./forgot-password-form";
 
@@ -15,21 +14,23 @@ export const metadata: Metadata = { title: "Reset your password" };
 
 export default function ForgotPasswordPage() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl">Reset your password</CardTitle>
-        <CardDescription>
+    <Card className="gap-0 py-8">
+      <CardHeader className="px-6 sm:px-8">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Reset your password
+        </h1>
+        <CardDescription className="text-base">
           We&apos;ll email you a link to set a new one.
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="grid gap-4">
+      <CardContent className="mt-8 grid gap-6 px-6 sm:px-8">
         <ForgotPasswordForm />
 
-        <p className="text-muted-foreground text-center text-sm">
-          <Link href="/login" className="text-foreground underline underline-offset-4">
+        <p className="text-center">
+          <AuthLink href="/login" className="text-foreground">
             Back to sign in
-          </Link>
+          </AuthLink>
         </p>
       </CardContent>
     </Card>

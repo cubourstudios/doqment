@@ -1,0 +1,273 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { and, eq } from "drizzle-orm";
+import { ChevronLeftIcon } from "lucide-react";
+
+import { db } from "@/db";
+import { clients, documents, documentVersions, projects, templates } from "@/db/schema";
+import { requireProfile } from "@/lib/auth";
+import { getCountryConfig } from "@/lib/regions";
+import { peekNextInvoiceNumber } from "@/lib/invoice/numbering";
+import { stateCodeFromGstin } from "@/lib/invoice/tax";
+import { addDays, hasAddress, taxRateFromComponents } from "@/lib/invoice/round-trip";
+import { DOC_TYPE_LABELS } from "@/lib/labels";
+import { Button } from "@/components/ui/button";
+import { requiresDisclaimer } from "@/lib/disclaimers";
+import { buildPrefill, type RenderContext } from "@/lib/templates/render";
+import type { TemplateSchema } from "@/lib/templates/types";
+import { docTypeEnum } from "@/db/schema";
+import type { DocType } from "@/lib/guidance/types";
+
+import { InvoiceForm, type InvoiceFormInitial } from "./invoice-form";
+import type { InvoicePdfData } from "@/components/pdf/invoice-document";
+import { TemplateForm } from "./template-form";
+import { createInvoice } from "../actions";
+import { createTemplateDocument } from "../create-document";
+
+export const metadata: Metadata = { title: "New document" };
+
+function parseDocType(value: unknown): DocType {
+  return docTypeEnum.enumValues.includes(value as DocType)
+    ? (value as DocType)
+    : "invoice";
+}
+
+export default async function NewDocumentPage({
+  params,
+  searchParams,
+}: PageProps<"/projects/[id]/documents/new">) {
+  const { id } = await params;
+  const { type, from } = await searchParams;
+  const { userId, profile } = await requireProfile();
+
+  const [row] = await db
+    .select({ project: projects, client: clients })
+    .from(projects)
+    .leftJoin(clients, eq(projects.clientId, clients.id))
+    .where(and(eq(projects.id, id), eq(projects.userId, userId)))
+    .limit(1);
+
+  if (!row) notFound();
+
+  const { project, client } = row;
+  const docType = parseDocType(type);
+  const country = getCountryConfig(profile.country);
+
+  if (docType === "invoice") {
+    /*
+     * Duplicating an existing invoice.
+     *
+     * A retainer client gets the same invoice every month, and re-entering
+     * every line item is the most repeated waste in the product. This seeds
+     * the form and stops there: the number is still only reserved on submit,
+     * so abandoning a duplicate costs nothing. Reserving on the click would
+     * burn a number for a decision not yet made, and numbers are never reused.
+     */
+    const source =
+      typeof from === "string" ? await loadInvoiceSource(from, userId) : null;
+
+    const nextInvoiceNumber = await peekNextInvoiceNumber(
+      db,
+      userId,
+      profile.country,
+      new Date(),
+    );
+
+    return (
+      <Shell projectId={project.id} projectTitle={project.title}>
+        <h1 className="text-2xl font-semibold tracking-tight">New invoice</h1>
+        <p className="text-muted-foreground mt-1 mb-6 text-sm">
+          For {client?.name ?? project.title}. Tax is worked out from where you
+          and your client are based.
+        </p>
+
+        {/*
+          Raised here rather than blocked at onboarding.
+
+          A tax invoice without the supplier's address is not valid under GST
+          and most equivalent regimes, but demanding an address during signup
+          would slow the one screen that must stay fast — and someone filling
+          in onboarding has no idea yet why it matters. Here they do, and the
+          fix is one tap away. It is a warning rather than a block because a
+          draft invoice is still useful, and being unable to proceed at all
+          would be worse than an invoice they can correct.
+        */}
+        {!hasAddress(profile.addressJson) ? (
+          <div className="border-recommended/60 bg-recommended/10 mb-6 rounded-lg border px-4 py-3 text-sm">
+            <p className="font-medium">Add your business address first</p>
+            <p className="text-muted-foreground mt-1">
+              A tax invoice needs it to be valid
+              {country.code === "IN" ? " under GST" : ""}. It takes a moment and
+              applies to every invoice from now on.
+            </p>
+            <Button asChild variant="outline" size="sm" className="mt-3">
+              <Link href="/settings">Add it in settings</Link>
+            </Button>
+          </div>
+        ) : null}
+
+        <InvoiceForm
+          action={createInvoice.bind(null, project.id)}
+          context={{
+            currency: profile.currency ?? country.currency,
+            supplierCountry: country.code,
+            supplierStateCode: stateCodeFromGstin(profile.taxId),
+            clientCountry: client?.country ?? null,
+            clientStateCode: stateCodeFromGstin(client?.taxId ?? null),
+            registered: Boolean(profile.taxId),
+            nextInvoiceNumber,
+            defaultDescription: project.title,
+            defaultNotes: profile.paymentDetails ?? "",
+          }}
+          initial={source ?? undefined}
+        />
+      </Shell>
+    );
+  }
+
+  const [template] = await db
+    .select({
+      name: templates.name,
+      schemaJson: templates.schemaJson,
+    })
+    .from(templates)
+    .where(
+      and(
+        eq(templates.docType, docType),
+        eq(templates.region, country.region),
+        eq(templates.isActive, true),
+      ),
+    )
+    .limit(1);
+
+  if (!template) {
+    return (
+      <Shell projectId={project.id} projectTitle={project.title}>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {DOC_TYPE_LABELS[docType]}
+        </h1>
+        <p className="text-muted-foreground mt-2 text-sm">
+          This document type isn&apos;t available for your region yet.
+        </p>
+      </Shell>
+    );
+  }
+
+  const schema = template.schemaJson as TemplateSchema;
+
+  const context: RenderContext = {
+    profile: {
+      businessName: profile.businessName,
+      name: profile.name,
+      addressJson: profile.addressJson,
+      taxId: profile.taxId,
+      country: profile.country,
+    },
+    client: client
+      ? {
+          name: client.name,
+          company: client.company,
+          addressJson: client.addressJson,
+          country: client.country,
+          taxId: client.taxId,
+        }
+      : null,
+    project: {
+      title: project.title,
+      startDate: project.startDate,
+      endDate: project.endDate,
+    },
+  };
+
+  return (
+    <Shell projectId={project.id} projectTitle={project.title}>
+      <h1 className="text-2xl font-semibold tracking-tight">
+        New {DOC_TYPE_LABELS[docType].toLowerCase()}
+      </h1>
+      <p className="text-muted-foreground mt-1 mb-6 text-sm">
+        For {client?.name ?? project.title}. Anything we already know is filled
+        in — change whatever isn&apos;t right.
+      </p>
+
+      <TemplateForm
+        action={createTemplateDocument.bind(null, project.id, docType)}
+        schema={schema}
+        initialValues={buildPrefill(schema, context)}
+        submitLabel={`Create ${DOC_TYPE_LABELS[docType].toLowerCase()}`}
+        showDisclaimer={requiresDisclaimer(docType)}
+      />
+    </Shell>
+  );
+}
+
+function Shell({
+  projectId,
+  projectTitle,
+  children,
+}: {
+  projectId: string;
+  projectTitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mx-auto w-full max-w-lg">
+      <Link
+        href={`/projects/${projectId}`}
+        className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1 text-sm"
+      >
+        <ChevronLeftIcon className="size-4" />
+        {projectTitle}
+      </Link>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Read an invoice's current version into the shape the form seeds from.
+ *
+ * Dates are deliberately not copied. A duplicate is this month's invoice, not
+ * a copy of last month's — carrying the old issue date forward would produce
+ * an invoice dated in the past and, with it, one that is already overdue.
+ * Leaving them undefined lets the form apply its own defaults: today, Net 30.
+ */
+async function loadInvoiceSource(
+  documentId: string,
+  userId: string,
+): Promise<InvoiceFormInitial | null> {
+  const [row] = await db
+    .select({ version: documentVersions })
+    .from(documents)
+    .innerJoin(
+      documentVersions,
+      eq(documents.currentVersionId, documentVersions.id),
+    )
+    .where(
+      and(
+        eq(documents.id, documentId),
+        // Scoped to the caller: without this, any document id would be
+        // readable by anyone who could guess one.
+        eq(documents.userId, userId),
+        eq(documents.docType, "invoice"),
+      ),
+    )
+    .limit(1);
+
+  if (!row) return null;
+
+  const data = row.version.dataJson as InvoicePdfData;
+
+  return {
+    issueDate: new Date().toISOString().slice(0, 10),
+    dueDate: addDays(new Date().toISOString().slice(0, 10), 30),
+    discount: data.discount === "0.00" ? "" : data.discount,
+    notes: data.notes ?? "",
+    taxRateBasisPoints: taxRateFromComponents(data.tax.components),
+    lineItems: data.lineItems.map((item) => ({
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+    })),
+  };
+}

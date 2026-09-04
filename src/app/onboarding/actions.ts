@@ -32,13 +32,22 @@ export async function completeOnboarding(
     businessName: formData.get("businessName") ?? "",
     businessType: formData.get("businessType") || undefined,
     taxId: formData.get("taxId") ?? "",
+    address: formData.get("address") ?? "",
   });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check your details." };
   }
 
-  const { name, country, profession, businessName, businessType, taxId } =
+  const {
+    name,
+    country,
+    profession,
+    businessName,
+    businessType,
+    taxId,
+    address,
+  } =
     parsed.data;
 
   // Currency and tax-ID type are derived, never asked for: they follow from the
@@ -55,6 +64,7 @@ export async function completeOnboarding(
       businessName: businessName || null,
       businessType: businessType ?? null,
       taxId: taxId || null,
+      addressJson: address ? { lines: address.split("\n") } : null,
       taxIdType: taxId ? config.taxIdType : null,
       updatedAt: new Date(),
     })

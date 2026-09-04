@@ -28,7 +28,10 @@
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
+  /* Brand blue #0140ff, converted rather than eyeballed. White on it measures
+     6.61:1, which clears WCAG AA for body text, so primary buttons can carry
+     ordinary label sizes rather than being restricted to large text. */
+  --primary: oklch(0.501 0.28 263.873);
   --primary-foreground: oklch(0.984 0.003 247.858);
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: oklch(0.208 0.042 265.755);
@@ -40,21 +43,29 @@
   --destructive-foreground: oklch(0.984 0.003 247.858);
   --border: oklch(0.929 0.013 255.508);
   --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  /* The focus ring carries the brand: a saturated ring is easier to see than
+     the old grey-blue, and focus is the one state that must never be subtle. */
+  --ring: oklch(0.501 0.28 263.873);
 
   /* Document-priority accents. These carry meaning in the checklist — the
      whole product is about telling someone what is essential versus optional —
-     so they are tokens, not one-off classes. */
-  --essential: oklch(0.577 0.245 27.325);
+     so they are tokens, not one-off classes.
+
+     Essential is deliberately NOT red. Red already means "overdue" on invoices
+     and "destructive" on buttons, and a user seeing red beside "Service
+     Agreement" should not have to work out whether it is a priority or an
+     error. Priority reads as weight here — dark, then amber, then grey —
+     which leaves red meaning exactly one thing across the product. */
+  --essential: oklch(0.279 0.041 260.031);
   --essential-foreground: oklch(0.984 0.003 247.858);
-  --recommended: oklch(0.646 0.222 41.116);
-  --recommended-foreground: oklch(0.208 0.042 265.755);
-  --situational: oklch(0.554 0.046 257.417);
-  --situational-foreground: oklch(0.984 0.003 247.858);
+  --recommended: oklch(0.828 0.189 84.429);
+  --recommended-foreground: oklch(0.279 0.041 260.031);
+  --situational: oklch(0.968 0.007 247.896);
+  --situational-foreground: oklch(0.446 0.03 256.802);
 
   --sidebar: oklch(0.984 0.003 247.858);
   --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary: oklch(0.501 0.28 263.873);
   --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
   --sidebar-accent: oklch(0.968 0.007 247.896);
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
@@ -83,12 +94,12 @@
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.551 0.027 264.364);
 
-  --essential: oklch(0.704 0.191 22.216);
-  --essential-foreground: oklch(0.984 0.003 247.858);
-  --recommended: oklch(0.75 0.18 55);
+  --essential: oklch(0.929 0.013 255.508);
+  --essential-foreground: oklch(0.208 0.042 265.755);
+  --recommended: oklch(0.828 0.189 84.429);
   --recommended-foreground: oklch(0.208 0.042 265.755);
-  --situational: oklch(0.551 0.027 264.364);
-  --situational-foreground: oklch(0.984 0.003 247.858);
+  --situational: oklch(0.279 0.041 260.031);
+  --situational-foreground: oklch(0.704 0.04 256.788);
 
   --sidebar: oklch(0.208 0.042 265.755);
   --sidebar-foreground: oklch(0.984 0.003 247.858);
@@ -137,7 +148,9 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --font-sans: var(--font-geist-sans);
+  /* Inter, self-hosted by next/font — served from our own origin, so no extra
+     round trip in front of first paint and no flash of fallback text. */
+  --font-sans: var(--font-sans-family), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -157,6 +170,9 @@
        reads as a layout bug. Keeping the base at 16px avoids it entirely. */
     font-size: 16px;
     -webkit-tap-highlight-color: transparent;
+    /* Inter carries an optical-size axis; letting it adjust keeps small labels
+       readable without making headings look loose. */
+    font-optical-sizing: auto;
   }
 
   /* Respect the iOS home indicator and notch. The app is mobile-first, so this

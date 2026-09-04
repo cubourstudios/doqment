@@ -21,7 +21,7 @@ tax-compliant invoices.
 
 Next.js (App Router) · TypeScript · Supabase (Postgres, Auth, Storage, RLS) ·
 Drizzle · Tailwind + shadcn/ui · react-hook-form + Zod ·
-@react-pdf/renderer · Razorpay + Stripe
+@react-pdf/renderer · Razorpay
 
 ## Quick start
 

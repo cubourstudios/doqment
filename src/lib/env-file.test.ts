@@ -96,9 +96,9 @@ describe("renderEnvFile", () => {
   it("carries forward existing values the prompts did not ask about", () => {
     const rendered = renderEnvFile(
       new Map(),
-      new Map([["STRIPE_SECRET_KEY", "sk_test_123"]]),
+      new Map([["RAZORPAY_KEY_SECRET", "rzp_secret_123"]]),
     );
-    expect(rendered).toContain("STRIPE_SECRET_KEY=sk_test_123");
+    expect(rendered).toContain("RAZORPAY_KEY_SECRET=rzp_secret_123");
   });
 
   it("round-trips through the parser", () => {

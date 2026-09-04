@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -126,6 +127,26 @@ export function OnboardingForm({ defaultName }: { defaultName: string }) {
           autoCapitalize="characters"
           placeholder="Optional — you can add this later"
         />
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="address">
+          Business address
+          <span className="text-muted-foreground font-normal"> (optional)</span>
+        </Label>
+        <Textarea
+          id="address"
+          name="address"
+          rows={3}
+          placeholder="Appears on your invoices"
+        />
+        {/* Optional here on purpose: this screen has to stay under a minute.
+            The invoice form asks again at the point the address actually
+            matters, which is where someone will understand why. */}
+        <p className="text-muted-foreground text-sm">
+          A tax invoice needs your address to be valid in most countries, India
+          included.
+        </p>
       </div>
 
       {state.error ? (

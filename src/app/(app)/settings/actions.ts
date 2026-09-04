@@ -28,13 +28,24 @@ export async function updateProfile(
     businessName: formData.get("businessName") ?? "",
     businessType: formData.get("businessType") || undefined,
     taxId: formData.get("taxId") ?? "",
+    address: formData.get("address") ?? "",
+    paymentDetails: formData.get("paymentDetails") ?? "",
   });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check your details." };
   }
 
-  const { name, country, profession, businessName, businessType, taxId } =
+  const {
+    name,
+    country,
+    profession,
+    businessName,
+    businessType,
+    taxId,
+    address,
+    paymentDetails,
+  } =
     parsed.data;
   const config = getCountryConfig(country);
 
@@ -49,6 +60,8 @@ export async function updateProfile(
       businessType: businessType ?? null,
       taxId: taxId || null,
       taxIdType: taxId ? config.taxIdType : null,
+      addressJson: address ? { lines: address.split("\n") } : null,
+      paymentDetails: paymentDetails || null,
       updatedAt: new Date(),
     })
     .where(eq(profiles.userId, user.id));

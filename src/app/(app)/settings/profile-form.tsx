@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -128,6 +129,42 @@ export function ProfileForm({
           defaultValue={profile.taxId ?? ""}
           autoCapitalize="characters"
         />
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="address">Business address</Label>
+        <Textarea
+          id="address"
+          name="address"
+          rows={3}
+          defaultValue={
+            (profile.addressJson as { lines?: string[] } | null)?.lines?.join(
+              "\n",
+            ) ?? ""
+          }
+          placeholder="Appears on your invoices"
+        />
+        <p className="text-muted-foreground text-sm">
+          Required on a valid tax invoice in most countries, India included.
+        </p>
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="paymentDetails">How clients pay you</Label>
+        <Textarea
+          id="paymentDetails"
+          name="paymentDetails"
+          rows={4}
+          defaultValue={profile.paymentDetails ?? ""}
+          placeholder={"Account name\nAccount number\nIFSC / SWIFT\nUPI id"}
+        />
+        {/* Typed once here rather than on every invoice. Retyping bank details
+            each time is tedious and eventually gets forgotten, and an invoice
+            with no payment instructions is one the client cannot act on. */}
+        <p className="text-muted-foreground text-sm">
+          Added to every new invoice, so you don&apos;t retype it. You can
+          still change it on any single invoice.
+        </p>
       </div>
 
       {state.error ? (
