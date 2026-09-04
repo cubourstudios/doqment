@@ -11,6 +11,9 @@ const PROTECTED_PREFIXES = [
   "/documents",
   "/settings",
   "/onboarding",
+  // Gated like any signed-in page. The page itself relaxes this when Supabase
+  // is unconfigured, because then no session can exist to check.
+  "/setup",
 ];
 
 /** Auth pages a signed-in user has no business seeing. */
