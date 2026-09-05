@@ -29,7 +29,29 @@ if (!connectionString) {
   process.exit(1);
 }
 
-const sql = postgres(connectionString, { max: 1, onnotice: () => {} });
+/*
+ * Mirrors src/db/connection.ts, which this plain .mjs script cannot import.
+ *
+ * Worth stating plainly why TLS matters here specifically: this script applies
+ * drizzle/manual/0001_rls.sql, which is what enables row level security and
+ * creates the "own rows" policies. Supabase's pooler refuses plaintext, so
+ * without this the script cannot connect — and a run that never connects
+ * leaves RLS off, which means one user's rows are readable by another through
+ * the Supabase client. A connection failure here is a data leak, not an
+ * inconvenience.
+ *
+ * An explicit sslmode in the URL is left alone, as is a local database, which
+ * has no TLS to require.
+ */
+const needsSsl =
+  !/[?&]sslmode=/i.test(connectionString) &&
+  !/@(?:localhost|127\.0\.0\.1|\[::1\])[:/]/i.test(connectionString);
+
+const sql = postgres(connectionString, {
+  max: 1,
+  ...(needsSsl ? { ssl: "require" } : {}),
+  onnotice: () => {},
+});
 
 const files = readdirSync(MANUAL_DIR)
   .filter((f) => f.endsWith(".sql"))
