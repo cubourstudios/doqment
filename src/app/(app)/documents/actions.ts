@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -10,6 +10,7 @@ import { documents, invoices } from "@/db/schema";
 import { invoiceStatusEnum } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { track } from "@/lib/analytics";
+import { ALLOWED_FROM } from "@/lib/invoice/status";
 
 const statusSchema = z.object({
   documentId: z.string().uuid(),
@@ -35,17 +36,50 @@ export async function updateInvoiceStatus(formData: FormData) {
 
   const { documentId, status } = parsed.data;
 
-  await db
+  /*
+   * The legal predecessors, asserted in the WHERE clause rather than checked
+   * and then trusted — the same shape markInvoiceSent below already uses, and
+   * for the same reason: a stale page must not be able to slip a transition
+   * past a check that ran a moment earlier.
+   *
+   * Nothing may return to draft. Editing and deleting an invoice both gate on
+   * `status === "draft"`, so paid -> draft -> edit and paid -> draft -> delete
+   * walked through two rules this product treats as compliance requirements.
+   * ALLOWED_FROM.draft is empty, so this UPDATE matches no row for it.
+   */
+  const allowedFrom = ALLOWED_FROM[status];
+
+  if (allowedFrom.length === 0) return;
+
+  const [updated] = await db
     .update(invoices)
     .set({
       status,
-      // Recording when it was paid, rather than only that it was, is what
-      // makes "how long do my clients take to pay" answerable later.
-      paidAt: status === "paid" ? new Date() : null,
+      /*
+       * Set when the invoice becomes paid, and never cleared.
+       *
+       * This used to be `status === "paid" ? new Date() : null`, so moving a
+       * paid invoice to cancelled destroyed the date silently — and paid_at is
+       * what getMonthlyTotals buckets the "received" bar on, which is the one
+       * thing the dashboard chart exists to show. Recording when payment
+       * arrived, rather than only that it did, is also what makes "how long do
+       * my clients take to pay" answerable later, so it is not ours to discard
+       * on an unrelated status change.
+       */
+      ...(status === "paid" ? { paidAt: new Date() } : {}),
     })
     .where(
-      and(eq(invoices.documentId, documentId), eq(invoices.userId, user.id)),
-    );
+      and(
+        eq(invoices.documentId, documentId),
+        eq(invoices.userId, user.id),
+        inArray(invoices.status, [...allowedFrom]),
+      ),
+    )
+    .returning({ status: invoices.status });
+
+  // The transition was refused, or the invoice is gone. Either way nothing
+  // changed, so there is nothing to revalidate and nothing to report.
+  if (!updated) return;
 
   if (status === "paid") {
     await track(user.id, "invoice_marked_paid");
