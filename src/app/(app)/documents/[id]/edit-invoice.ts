@@ -210,7 +210,34 @@ export async function updateInvoice(
     throw error;
   }
 
-  await db.transaction(async (tx) => {
+  const outcome = await db.transaction(async (tx) => {
+    /*
+     * Lock the parent document row for the rest of the transaction.
+     *
+     * The version number below is a read-modify-write — SELECT MAX, add one,
+     * INSERT — against the unique index on (document_id, version_no). Under
+     * READ COMMITTED two concurrent edits of the same invoice both read N and
+     * both try to insert N+1; the second raises a duplicate-key error that
+     * escapes this action entirely, so the user loses a form they had just
+     * filled in to a blank error page with an opaque digest.
+     *
+     * numbering.ts solves the identical problem for invoice numbers by letting
+     * the second writer block on a row lock rather than race, and this is that
+     * lock. Concurrent edits now queue instead of colliding.
+     *
+     * Filtered by user as well as id: this connection bypasses row level
+     * security, and a lock is a write-shaped operation.
+     */
+    const [locked] = await tx
+      .select({ id: documents.id })
+      .from(documents)
+      .where(and(eq(documents.id, documentId), eq(documents.userId, userId)))
+      .for("update")
+      .limit(1);
+
+    // Deleted between the read above and this lock.
+    if (!locked) return "gone" as const;
+
     const [latest] = await tx
       .select({
         versionNo: documentVersions.versionNo,
@@ -285,7 +312,11 @@ export async function updateInvoice(
           eq(invoices.status, "draft"),
         ),
       );
+
+    return "saved" as const;
   });
+
+  if (outcome === "gone") return { error: "That invoice no longer exists." };
 
   revalidatePath(`/documents/${documentId}`);
   revalidatePath("/documents");
